@@ -36,7 +36,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1330, 775);
             this.Name = "Form1";
-            this.Text = "Form1";
+            this.Text = "ProNav - Proportional Navigation";
             this.ResizeEnd += new System.EventHandler(this.Form1_ResizeEnd);
             this.SizeChanged += new System.EventHandler(this.Form1_SizeChanged);
             this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.Form1_KeyPress);

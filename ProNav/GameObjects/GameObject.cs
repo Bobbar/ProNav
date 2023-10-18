@@ -10,9 +10,13 @@ namespace ProNav.GameObjects
 {
     public abstract class GameObject
     {
+        public bool IsExpired { get; set; } = false;
+
         public D2DPoint Position { get; set; }
 
         public D2DPoint Velocity { get; set; }
+
+        protected long currentFrame = 0;
 
         public float Rotation
         {
@@ -20,16 +24,13 @@ namespace ProNav.GameObjects
 
             set
             {
-                _rotation = value % 360;
-
-                if (_rotation < 0f)
-                    _rotation += 360f;
+                _rotation = ClampAngle(value);
             }
         }
 
         protected float _rotation = 0f;
-        //protected Random _rnd = new Random();
 
+        //protected Random _rnd = new Random();
         protected Random _rnd => Helpers.Rnd;
 
         public float RotationSpeed { get; set; }
@@ -70,11 +71,13 @@ namespace ProNav.GameObjects
 
         public virtual void Update(float dt, D2DSize viewport, float renderScale)
         {
-            Position = Position.Add(new D2DPoint(Velocity.X * dt, Velocity.Y * dt));
+            Position += Velocity * dt;
 
             Rotation += RotationSpeed * dt;
 
             Wrap(viewport);
+
+            currentFrame++;
         }
 
         public virtual void Wrap(D2DSize viewport)
@@ -135,7 +138,6 @@ namespace ProNav.GameObjects
             var absDiffDeg = Math.Min(360d - normDeg, normDeg);
 
             return absDiffDeg;
-
         }
 
         protected float ModSign(float a, float n)
@@ -176,8 +178,6 @@ namespace ProNav.GameObjects
 
             return ret;
         }
-
-
     }
 
 
@@ -209,9 +209,6 @@ namespace ProNav.GameObjects
 
         public GameObjectPoly(D2DPoint[] polygon)
         {
-            //Polygon = polygon;
-            //this.srcPoly = polygon;
-
             Polygon = new RenderPoly(polygon);
         }
 

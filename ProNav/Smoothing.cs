@@ -16,7 +16,7 @@ namespace ProNav
         private int _max;
         private int _position = 0;
         private float _current;
-        private float _maxDelta = 0f;
+      
         /// <summary>
         /// Current average.
         /// </summary>
@@ -40,7 +40,6 @@ namespace ProNav
         public SmoothFloat(int max, float maxDelta)
         {
             _max = max;
-            _maxDelta = maxDelta;
         }
 
         /// <summary>
@@ -52,16 +51,6 @@ namespace ProNav
         {
             lock (_values)
             {
-                if (_maxDelta > 0f && _position > 0 && Math.Abs(value - _current) > _maxDelta)
-                {
-                    Debug.WriteLine($"InstantVal: {value}   Cur: {_current}");
-
-                    Clear();
-                    Add(value);
-                    return value;
-                }
-
-
                 // Add new values until the collection is full, then do round robin.
                 if (_values.Count < _max)
                 {
@@ -113,7 +102,6 @@ namespace ProNav
         private int _max;
         private int _position = 0;
         private double _current;
-        private double _maxDelta = 0f;
         /// <summary>
         /// Current average.
         /// </summary>
@@ -137,7 +125,6 @@ namespace ProNav
         public SmoothDouble(int max, double maxDelta)
         {
             _max = max;
-            _maxDelta = maxDelta;
         }
 
         /// <summary>
@@ -149,16 +136,6 @@ namespace ProNav
         {
             lock (_values)
             {
-                if (_maxDelta > 0f && _position > 0 && Math.Abs(value - _current) > _maxDelta)
-                {
-                    Debug.WriteLine($"InstantVal: {value}   Cur: {_current}");
-
-                    Clear();
-                    Add(value);
-                    return value;
-                }
-
-
                 // Add new values until the collection is full, then do round robin.
                 if (_values.Count < _max)
                 {
@@ -239,10 +216,6 @@ namespace ProNav
         /// <returns>Returns the new accumulative average value.</returns>
         public D2DPoint Add(D2DPoint value)
         {
-            // Reset the position if we reach the end of the collection.
-            if (_position >= _max)
-                _position = 0;
-
             // Add new values until the collection is full, then do round robin.
             if (_values.Count < _max)
             {
@@ -263,7 +236,7 @@ namespace ProNav
             _current = total / _values.Count;
 
             // Move to next position.
-            _position++;
+            _position = (_position + 1) % _max;
 
             return _current;
         }

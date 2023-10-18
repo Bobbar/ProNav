@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection.Metadata;
+using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using unvell.D2DLib;
@@ -12,11 +15,11 @@ namespace ProNav.GameObjects
         public bool FlameOn = false;
 
         private const float THRUST = 65f;//10f;
-        
+
         private D2DColor _fillColor = new D2DColor(0.8f, D2DColor.DarkGray);
         private D2DColor _flameFillColor = new D2DColor(0.8f, D2DColor.Yellow);
 
-        private static  readonly D2DPoint[] _shipPoly = new D2DPoint[]
+        private static readonly D2DPoint[] _shipPoly = new D2DPoint[]
         {
             new D2DPoint(5, 0),
             new D2DPoint(-4, 4),
@@ -34,13 +37,14 @@ namespace ProNav.GameObjects
 
         private RenderPoly FlamePoly;
 
+        public Action<Bullet> FireBulletCallback { get; set; }
 
         public Ship() : base(_shipPoly)
         {
             FlamePoly = new RenderPoly(_flamePoly);
         }
 
-        public Ship(D2DPoint pos) : base(pos, D2DPoint.Zero, _shipPoly) 
+        public Ship(D2DPoint pos) : base(pos, D2DPoint.Zero, _shipPoly)
         {
             FlamePoly = new RenderPoly(_flamePoly);
         }
@@ -84,10 +88,20 @@ namespace ProNav.GameObjects
             var rads = this.Rotation * ((float)Math.PI / 180f);
             var vec = new D2DPoint((float)Math.Cos(rads), (float)Math.Sin(rads));
             gfx.DrawLine(this.Position, this.Position + vec * 200f, new D2DColor(0.2f, D2DColor.LightGreen), 3f, D2DDashStyle.Dot);
-
         }
 
+        public void FireBullet()
+        {
+            var bullet = new Bullet(this.Position, this.Rotation);
+            FireBulletCallback(bullet);
+        }
 
+        public void FireBullet(Target target, Action<D2DPoint> addExplosion)
+        {
+            var bullet = new TargetedBullet(this.Position, target);
+            bullet.AddExplosionCallback = addExplosion;
+            FireBulletCallback(bullet);
+        }
 
     }
 }

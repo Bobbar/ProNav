@@ -10,7 +10,6 @@ namespace ProNav.GameObjects
 {
     public class GuidedMissile : Missile
     {
-        //public Target Target { get; set; }
         public Target Target { get; set; }
 
 
@@ -38,13 +37,6 @@ namespace ProNav.GameObjects
 
 
 
-        private float LIFESPAN = 70f;//40f;
-        private float _age = 0;
-        private float THRUST = 6000f;//4000f;
-        private float MASS = 35.3f;
-        private float FUEL = 50f;
-        private float _thrustBoost = 0;
-
         private float BURN_RATE
         {
             //get { return THRUST / 1000f; }
@@ -59,8 +51,6 @@ namespace ProNav.GameObjects
         }
 
 
-
-
         private D2DPoint _prevTargPos = D2DPoint.Zero;
         private D2DPoint _prevPos = D2DPoint.Zero;
         private D2DPoint _prevImpactPnt = D2DPoint.Zero;
@@ -69,10 +59,8 @@ namespace ProNav.GameObjects
         private D2DPoint _impactPnt = D2DPoint.Zero;
         private D2DPoint _liftVector = D2DPoint.Zero;
         private D2DPoint _dragVector = D2DPoint.Zero;
-
         private D2DPoint _lastMissedLoc = D2DPoint.Zero;
         private D2DPoint _missLoc = D2DPoint.Zero;
-
 
         private float _prevVelo = 0f;
         private float _prevTargetDist = 0f;
@@ -81,18 +69,15 @@ namespace ProNav.GameObjects
         private bool _missedTarget = false;
         private float _reEngageMod = 0f;
 
-        //private SmoothFloat _impactDeltaSmooth = new SmoothFloat(2);
-        //private SmoothFloat _rotAmtSmooth = new SmoothFloat(2);
-        //private SmoothFloat _angleDiffSmooth = new SmoothFloat(10);
-        //private SmoothDouble _targAngleDeltaSmooth = new SmoothDouble(4);
-        //private SmoothFloat _dvSmooth = new SmoothFloat(5);
-        //private SmoothDouble _ftiSmooth = new SmoothDouble(1);
-        //private SmoothFloat _closingRateSmooth = new SmoothFloat(5);
-        //private SmoothPos _impactPntSmooth = new SmoothPos(1);
-        //private SmoothPos _dirSmooth = new SmoothPos(2);
-        //private SmoothPos _aimPointSmooth = new SmoothPos(1);
-        //private SmoothPos _targetVeloSmooth = new SmoothPos(2);
+        private const float LIFESPAN = 70f;
+        private float _age = 0;
+        private const float THRUST = 6000f;
+        private const float MASS = 35.3f;
+        private float FUEL = 50f;
+        private float _thrustBoost = 0;
+        private float _maxGs = float.MinValue;
 
+        // Filters for guidance I/O.
         private SmoothFloat _impactDeltaSmooth = new SmoothFloat(1);
         private SmoothFloat _rotAmtSmooth = new SmoothFloat(1);
         private SmoothFloat _angleDiffSmooth = new SmoothFloat(5);
@@ -105,12 +90,9 @@ namespace ProNav.GameObjects
         private SmoothPos _aimPointSmooth = new SmoothPos(5);
         private SmoothPos _targetVeloSmooth = new SmoothPos(5);
 
-
-        private D2DColor _fLiftCol = new D2DColor(0.9f, D2DColor.Blue);
-        private D2DColor _fDragCol = new D2DColor(0.9f, D2DColor.Blue);
-        private D2DColor _nfLiftCol = new D2DColor(0.6f, D2DColor.GreenYellow);
-        private D2DColor _nfDragCol = new D2DColor(0.6f, D2DColor.Yellow);
         private D2DColor _flameFillColor = new D2DColor(0.6f, D2DColor.Yellow);
+
+        private float _renderOffset = 4f;//2.5f;
 
         public GuidedMissile(Ship player, Target target) : base(player.Position, player.Velocity, player.Rotation)
         {
@@ -121,75 +103,52 @@ namespace ProNav.GameObjects
             _prevPos = this.Position;
             _prevTargPos = target.Position;
 
+            // Set initial velo.
+            // Aero and guidance logic don't work if our velo is zero.
+            this.Velocity = GetThrust(1f);
+        }
+
+        private D2DPoint GetThrust(float dt)
+        {
+            // ***  THRUST ***
+            // Convert rotation into velo vector.
+            D2DPoint thrust = D2DPoint.Zero;
+
+            if (this.FUEL > 0f)
+            {
+                var vec = AngleToVector(this.Rotation);
+                vec *= THRUST + _thrustBoost;
+                thrust = dt * (vec / TotalMass);
+            }
+
+            return thrust;
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
         {
-            base.Update(dt, viewport, renderScale + 2.5f);
+            base.Update(dt, viewport, renderScale + _renderOffset);
 
             _age += dt;
 
             if (_age > LIFESPAN)
                 this.IsExpired = true;
 
-            // ***  THRUST ***
-            // Convert rotation into velo vector and integrate.
-            var rads = this.Rotation * ((float)Math.PI / 180f);
-            var vec = new D2DPoint((float)Math.Cos(rads), (float)Math.Sin(rads));
-            vec *= THRUST + _thrustBoost;
+            D2DPoint accel = D2DPoint.Zero;
 
-            if (this.FUEL > 0f)
-                this.Velocity += dt * (vec / TotalMass);
+            accel += GetThrust(dt);
 
-            var target = this.Target.CenterOfPolygon();
-            var veloMag = this.Velocity.Length();
-            var veloMagSq = (float)Math.Pow(veloMag, 2f);
+            // Apply aerodynamics.
+            var liftDrag = LiftDragForce();
+            accel += dt * (liftDrag / TotalMass);
 
-            // Compute velo tangent. For lift/drag and rotation calcs.
-            var veloNorm = D2DPoint.Normalize(this.Velocity);
-            var veloNormTan = new D2DPoint(veloNorm.Y, -Cross(veloNorm, new D2DPoint(0, 1))); // Up
+            //_maxGs = Math.Max(_maxGs, accel.Length());
+            ////Debug.WriteLine($"Gs?: {accel.Length()} ({_maxGs})");
 
-            // Compute angle of attack.
-            var aoaRads = Cross(AngleToVector(this.Rotation), veloNorm);
-            var aoa = aoaRads * (180f / (float)Math.PI);
-
-            var rot = GuideTo(target, dt);
+            // Apply guidance.
+            var rot = GuideTo(this.Target.CenterOfPolygon(), dt);
             this.Rotation = rot;
 
-            // Compute lift force as velocity tangent with angle-of-attack effecting magnitude and direction. Velocity magnitude is factored as well.
-            // Greater AoA and greater velocity = more lift force.
-
-            // Wing & air parameters.
-            const float AOA_FACT = 0.2f;//0.12f;//0.11f;
-            const float VELO_FACT = 0.2f;//0.9f;
-            const float WING_AREA = 0.2f;//0.4f;//0.09f;//0.11f;//0.09f;//0.09f;//0.11f;
-            const float MAX_LIFT = 31000f;//36000f; // Max lift force allowed. (Approx 60 Gs)
-            const float MAX_AOA = 40f;//40f; // Max AoA allowed before lift force reduces. (Stall)
-            const float AIR_DENSITY = 1.225f;
-            const float PARASITIC_DRAG = 0.5f;//1.9f; // Lift/Velo indi
-
-            // Alternate drag formula.  Much more spiky, less tweakable.
-            var dragAoa = 1f - (float)Math.Cos(2f * aoaRads);
-            var dragForce = dragAoa * AOA_FACT * WING_AREA * 0.5f * AIR_DENSITY * veloMagSq * VELO_FACT;
-            dragForce += veloMag * (WING_AREA + PARASITIC_DRAG);
-            var dragVec = -veloNorm * dragForce;
-
-            var aoaFact = Helpers.Factor(MAX_AOA, Math.Abs(aoa));
-            var coeffLift = (float)Math.Sin(2f * aoaRads) * aoaFact;
-
-            //Alternate lift formula.
-            //var c = (float)Math.Pow(AIR_DENSITY * veloMag, 2f);
-            //float coeffLift = 0.01f;
-            //if (c > 0f)
-            //	coeffLift = (4f * (aoa * aoaFact)) / (float)Math.Sqrt(c);
-
-            var liftForce = AIR_DENSITY * 0.5f * (float)Math.Pow(veloMag, 2f) * WING_AREA * coeffLift;
-            liftForce = Math.Clamp(liftForce, -MAX_LIFT, MAX_LIFT);
-
-
-            // *** LIFT/DRAG ***
-            var liftVec = veloNormTan * liftForce;
-            this.Velocity += dt * ((liftVec + dragVec) / TotalMass);
+            this.Velocity += accel;
 
             var dist = D2DPoint.Distance(this.Position, _prevPos);
             _prevPos = this.Position;
@@ -198,20 +157,17 @@ namespace ProNav.GameObjects
             if (FUEL > 0f)
                 FUEL -= BURN_RATE * dt;
 
-            if (FUEL <= 0f && veloMag <= 70f)
+            if (FUEL <= 0f && this.Velocity.Length() <= 70f)
                 this.IsExpired = true;
 
-            if (Target.IsDestroyed)
+            if (Target.IsExpired)
                 this.IsExpired = true;
-
-            _liftVector = liftVec;
-            _dragVector = dragVec;
-
+           
             // Make the flame do flamey things...(Wiggle and color)
-            FlamePoly.SourcePoly[1].X = -_rnd.Next(7 + (int)(veloMag * 0.1f), 9 + (int)(veloMag * 0.1f));
+            FlamePoly.SourcePoly[1].X = -_rnd.Next(7 + (int)(this.Velocity.Length() * 0.1f), 9 + (int)(this.Velocity.Length() * 0.1f));
             _flameFillColor.g = _rnd.NextFloat(0.6f, 0.86f);
 
-            FlamePoly.Update(this.Position, this.Rotation, renderScale + 2.5f);
+            FlamePoly.Update(this.Position, this.Rotation, renderScale + _renderOffset);
         }
 
         public override void Wrap(D2DSize viewport)
@@ -239,18 +195,79 @@ namespace ProNav.GameObjects
             if (this.FUEL > 0f)
                 gfx.DrawPolygon(this.FlamePoly.Poly, _flameFillColor, 1f, D2DDashStyle.Solid, _flameFillColor);
 
-            gfx.DrawLine(this.Position, this.Position + (_liftVector * 0.05f), D2DColor.SkyBlue);
-            gfx.DrawLine(this.Position, this.Position + (_dragVector * 0.05f), D2DColor.Red);
+            //gfx.DrawLine(this.Position, this.Position + (_liftVector * 0.05f), D2DColor.SkyBlue);
+            //gfx.DrawLine(this.Position, this.Position + (_dragVector * 0.05f), D2DColor.Red);
 
+            //gfx.FillEllipse(new D2DEllipse(_finalAimPoint, new D2DSize(8f, 8f)), D2DColor.LawnGreen);
+            //gfx.FillEllipse(new D2DEllipse(_stableAimPoint, new D2DSize(6f, 6f)), D2DColor.Blue);
+            //gfx.FillEllipse(new D2DEllipse(_impactPnt, new D2DSize(4f, 4f)), D2DColor.Red);
+        }
 
-            gfx.FillEllipse(new D2DEllipse(_finalAimPoint, new D2DSize(8f, 8f)), D2DColor.LawnGreen);
-            gfx.FillEllipse(new D2DEllipse(_stableAimPoint, new D2DSize(6f, 6f)), D2DColor.Blue);
-            gfx.FillEllipse(new D2DEllipse(_impactPnt, new D2DSize(4f, 4f)), D2DColor.Red);
+        private D2DPoint LiftDragForce()
+        {
+            var veloMag = this.Velocity.Length();
+            var veloMagSq = (float)Math.Pow(veloMag, 2f);
+
+            // Compute velo tangent. For lift/drag and rotation calcs.
+            var veloNorm = D2DPoint.Normalize(this.Velocity);
+            var veloNormTan = new D2DPoint(veloNorm.Y, -Cross(veloNorm, new D2DPoint(0, 1))); // Up
+
+            // Compute angle of attack.
+            var aoaRads = Cross(AngleToVector(this.Rotation), veloNorm);
+            var aoa = aoaRads * (180f / (float)Math.PI);
+
+            // Compute lift force as velocity tangent with angle-of-attack effecting magnitude and direction. Velocity magnitude is factored as well.
+            // Greater AoA and greater velocity = more lift force.
+
+            // Wing & air parameters.
+            const float AOA_FACT = 0.2f; // How much AoA effects drag.
+            const float VELO_FACT = 0.2f; // How much velocity effects drag.
+            const float WING_AREA = 0.1f; // Area of the wing. Effects lift & drag forces.
+            const float MAX_LIFT = 31000f; // Max lift force allowed.
+            const float MAX_AOA = 40f; // Max AoA allowed before lift force reduces. (Stall)
+            const float AIR_DENSITY = 1.225f;
+            const float PARASITIC_DRAG = 0.5f;
+
+            // Alternate drag formula.  Much more spiky, less tweakable.
+            var dragAoa = 1f - (float)Math.Cos(2f * aoaRads);
+            var dragForce = dragAoa * AOA_FACT * WING_AREA * 0.5f * AIR_DENSITY * veloMagSq * VELO_FACT;
+            dragForce += veloMag * (WING_AREA + PARASITIC_DRAG);
+            var dragVec = -veloNorm * dragForce;
+
+            var aoaFact = Helpers.Factor(MAX_AOA, Math.Abs(aoa));
+            var coeffLift = (float)Math.Sin(2f * aoaRads) * aoaFact;
+
+            //Alternate lift formula.
+            //var c = (float)Math.Pow(AIR_DENSITY * veloMag, 2f);
+            //float coeffLift = 0.01f;
+            //if (c > 0f)
+            //	coeffLift = (4f * (aoa * aoaFact)) / (float)Math.Sqrt(c);
+
+            var liftForce = AIR_DENSITY * 0.5f * (float)Math.Pow(veloMag, 2f) * WING_AREA * coeffLift;
+            liftForce = Math.Clamp(liftForce, -MAX_LIFT, MAX_LIFT);
+
+            var liftVec = veloNormTan * liftForce;
+
+            _liftVector = liftVec;
+            _dragVector = dragVec;
+
+            return (liftVec + dragVec);
         }
 
 
         private float GuideTo(D2DPoint target, float dt)
         {
+            const float MAX_ROT_RATE = 2.8f; // Max rotation rate.
+            const float MIN_ROT_RATE = 1.8f; // Min rotation rate.
+            const float MIN_ROT_SPEED = 600f; // Speed at which rotation rate will be the smallest.
+            const float ARM_DIST = 600f; // How far we must travel before engaging the target.
+            const float MISS_TARG_DIST = 80f; // Distance to target to be considered a miss.
+            const float REENGAGE_DIST = 2500f; // How far we must be from the target before re-engaging after a miss.
+            const float ROT_MOD_DIST = 1000f; // Distance to begin increasing rotation rate. (Get more aggro the closer we get)
+            const float ROT_MOD_AMT = 1f; //1.5f; // Max amount to increase rot rate per above distance.
+            const float IMPACT_POINT_DELTA_THRESH = 2f; // Smaller value = target impact point later. (Waits until the point has stablized more)
+            const float MIN_CLOSE_RATE = 0.3f; // Min closing rate required to aim at predicted impact point.
+
             var targetVelo = target - _prevTargPos;
             targetVelo = _targetVeloSmooth.Add(targetVelo);
 
@@ -276,6 +293,7 @@ namespace ProNav.GameObjects
 
             var framesToImpact = TimeOfArrival(veloMag, deltaV, targDist, dt);
             //var framesToImpact = (double)targDist / (veloMag * dt);
+
             framesToImpact = _ftiSmooth.Add(framesToImpact);
             var tarVeloAngle = VecAngleD(D2DPoint.Normalize(targetVelo));
             var targAngleDelta = AngleDiffD(tarVeloAngle, _prevTargVeloAngle);
@@ -309,10 +327,6 @@ namespace ProNav.GameObjects
             _impactDeltaSmooth.Add(impactPntDelta);
             _prevImpactPnt = impactPnt;
 
-
-            const float IMPACT_POINT_DELTA_THRESH = 2f;//3f; // Smaller value = target impact point later. (Waits until the point has stablized more)
-            const float MIN_CLOSE_RATE = 0.3f;//0.5f; // Min closing rate required to aim at predicted impact point.
-
             // Only update the stable aim point when the predicted impact point is moving slowly.
             // If it begins to move quickly (when the target changes velo/direction) we keep targeting the previous point until it slows down again.
             if (_distTraveled == 0f)
@@ -342,7 +356,6 @@ namespace ProNav.GameObjects
             var targetDirAngle = VecAngle(aimDirection);
             _angleDiffSmooth.Add(AngleDiff(veloAngle, targetDirAngle));
 
-
             float angDiffFact;
 
             if (closingRate < MIN_CLOSE_RATE)
@@ -355,15 +368,6 @@ namespace ProNav.GameObjects
 
             var rotLerp = Helpers.Lerp(rotAmtNorm, rotAmtTan, angDiffFact);
             _rotAmtSmooth.Add(rotLerp);
-
-            const float MAX_ROT_RATE = 2.8f; // Max rotation rate.
-            const float MIN_ROT_RATE = 1.8f; // Min rotation rate.
-            const float MIN_ROT_SPEED = 600f; // Speed at which rotation rate will be the smallest.
-            const float ARM_DIST = 400f; // How far we must travel before engaging the target.
-            const float MISS_TARG_DIST = 80f; // Distance to target to be considered a miss.
-            const float REENGAGE_DIST = 2500f; // How far we must be from the target before re-engaging after a miss.
-            const float ROT_MOD_DIST = 1000f; // Distance to begin increasing rotation rate. (Get more aggro the closer we get)
-            const float ROT_MOD_AMT = 1f; //1.5f; // Max amount to increase rot rate per above distance.
 
             // Reduce rotation rate as velocity increases. Helps conserve inertia and reduce drag.
             var veloFact = Helpers.Factor(veloMag, MIN_ROT_SPEED);
@@ -389,15 +393,11 @@ namespace ProNav.GameObjects
                     //this.IsExpired = true;
 
                     // Increase re-engage dist slightly with each miss.
-                    _reEngageMod += REENGAGE_DIST * 0.5f; //0.15f;
+                    _reEngageMod += REENGAGE_DIST * 0.5f;
 
                     _lastMissedLoc = target;
                     _missLoc = this.Position;
-
-
-                    //// ??
-                    //_stableAimPoint = target;
-
+                   
                     Debug.WriteLine($"Miss dist: {D2DPoint.Distance(_missLoc, _lastMissedLoc)}  Impact dist: {D2DPoint.Distance(_finalAimPoint, target)}  PosVImp: {D2DPoint.Distance(_finalAimPoint, this.Position)}");
                 }
             }
@@ -414,7 +414,6 @@ namespace ProNav.GameObjects
             // This helps give us room to turn around and make another attempt.
             if (_missedTarget && targDist < REENGAGE_DIST + _reEngageMod)
                 rotAuthority = Helpers.Factor(targDist, REENGAGE_DIST + _reEngageMod);
-
 
             // Offset our current rotation from our current velocity vector to compute the next rotation.
             var nextRot = -(_rotAmtSmooth.Current * rotFact);

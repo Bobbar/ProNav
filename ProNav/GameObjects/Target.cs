@@ -82,7 +82,7 @@ namespace ProNav.GameObjects
 
     public class ErraticMovingTarget : Target
     {
-        private const float MIN_MAX_VELO = 520f;
+        private const float MIN_MAX_VELO = 320f;
         private const float MIN_MAX_ROT = 50f;
         private int _nextRotMod = 100;
         private int _nextVeloMod = 100;

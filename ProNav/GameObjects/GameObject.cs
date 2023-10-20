@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Numerics;
 using unvell.D2DLib;
 
 namespace ProNav.GameObjects
@@ -98,86 +93,12 @@ namespace ProNav.GameObjects
         public abstract void Render(D2DGraphics gfx);
 
 
-        protected float VecAngle(D2DPoint vec)
-        {
-            var angle = Math.Atan2(vec.Y, vec.X) * (180f / (float)Math.PI);
-
-            angle = angle % 360;
-
-            if (angle < 0f)
-                angle += 360f;
-
-            return (float)angle;
-        }
-
-        protected double VecAngleD(D2DPoint vec)
-        {
-            var angle = Math.Atan2(vec.Y, vec.X) * (180d / Math.PI);
-
-            angle = angle % 360d;
-
-            if (angle < 0d)
-                angle += 360d;
-
-            return angle;
-        }
-
-        protected float AngleDiff(float a, float b)
-        {
-            var normDeg = ModSign((a - b), 360f);
-
-            var absDiffDeg = Math.Min(360f - normDeg, normDeg);
-
-            return absDiffDeg;
-        }
-
-        protected double AngleDiffD(double a, double b)
-        {
-            var normDeg = ModSignD((a - b), 360d);
-
-            var absDiffDeg = Math.Min(360d - normDeg, normDeg);
-
-            return absDiffDeg;
-        }
-
-        protected float ModSign(float a, float n)
-        {
-            return a - (float)Math.Floor(a / n) * n;
-        }
-
-        protected double ModSignD(double a, double n)
-        {
-            return a - Math.Floor(a / n) * n;
-        }
-
-        protected D2DPoint AngleToVector(float angle)
-        {
-            var rads = angle * ((float)Math.PI / 180f);
-            var vec = new D2DPoint((float)Math.Cos(rads), (float)Math.Sin(rads));
-            return vec;
-        }
-
-        protected D2DPoint AngleToVectorD(double angle)
-        {
-            var rads = angle * (Math.PI / 180d);
-            var vec = new D2DPoint((float)Math.Cos(rads), (float)Math.Sin(rads));
-            return vec;
-        }
-
-        protected float Cross(D2DPoint vector1, D2DPoint vector2)
-        {
-            return (vector1.X * vector2.Y) - (vector1.Y * vector2.X);
-        }
-
-        protected float ClampAngle(float angle)
-        {
-            var ret = angle % 360f;
-
-            if (ret < 0f)
-                ret += 360f;
-
-            return ret;
-        }
+        protected float AngleDiff(float a, float b) => Helpers.AngleDiff(a, b);
+        protected double AngleDiffD(double a, double b) => Helpers.AngleDiffD(a, b);
+        protected D2DPoint AngleToVector(float angle) => Helpers.AngleToVector(angle);
+        protected D2DPoint AngleToVectorD(double angle) => Helpers.AngleToVectorD(angle);
+        protected float ClampAngle(float angle) => Helpers.ClampAngle(angle);
+        
     }
 
 

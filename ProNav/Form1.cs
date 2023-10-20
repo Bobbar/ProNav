@@ -16,7 +16,7 @@ namespace ProNav
 
         private const float DT = 0.1f;//0.08f;
         private const float RENDER_SCALE = -0.3f;
-        private const int PHYSICS_STEPS = 10;
+        private const int PHYSICS_STEPS = 8;//10;
         private const float ROTATE_RATE = 2f;
 
         private float _zoomScale = 0.2f;
@@ -56,6 +56,7 @@ namespace ProNav
         private bool _killRender = false;
         private bool _fireBurst = false;
         private bool _motionBlur = false;
+        private bool _shiftDown = false;
 
         private const int BURST_NUM = 10;
         private const int BURST_FRAMES = 3;
@@ -67,8 +68,10 @@ namespace ProNav
         private LockedList<GameObject> _bullets = new LockedList<GameObject>();
 
         private Ship _player = new Ship();
+        private GuidedMissile.GuidanceType _guidanceType = GuidedMissile.GuidanceType.Advanced;
 
         private D2DColor _blurColor = new D2DColor(0.1f, D2DColor.Black);
+        private D2DPoint _infoPosition = new D2DPoint(30, 30);
 
         private Random _rnd => Helpers.Rnd;
 
@@ -169,6 +172,9 @@ namespace ProNav
                 _player.Render(_gfx);
 
                 _gfx.PopTransform();
+
+                DrawOverlays(_gfx);
+
                 _gfx.EndRender();
 
 
@@ -196,9 +202,72 @@ namespace ProNav
                     _isPaused = true;
                     _pauseRenderEvent.Set();
                 }
-
             }
         }
+
+        private void DrawOverlays(D2DGraphics gfx)
+        {
+            //DrawRadial(_gfx, new D2DPoint(this.Width * 0.5f, this.Height * 0.5f));
+            DrawInfo(_gfx, _infoPosition);
+        }
+
+        private void DrawInfo(D2DGraphics gfx, D2DPoint pos)
+        {
+            string infoText = string.Empty;
+            infoText += $"Guidance Type: {_guidanceType.ToString()}\n";
+
+            var numObj = _missiles.Count + _targets.Count + _bullets.Count;
+            infoText += $"Num Objects: {numObj}\n";
+
+            gfx.DrawText(infoText, D2DColor.GreenYellow, "Consolas", 12f, pos.X, pos.Y);
+        }
+
+
+        private float _testAngle = 0f;
+        private void DrawRadial(D2DGraphics gfx, D2DPoint pos)
+        {
+            const float radius = 300f;
+            const float step = 10f;
+
+            float angle = 0f;
+
+            while (angle < 360f)
+            {
+                var vec = Helpers.AngleToVector(angle);
+                vec = pos + (vec * radius);
+
+                gfx.DrawLine(pos, vec, D2DColor.Gray);
+
+                gfx.DrawText(angle.ToString(), D2DColor.White, "Consolas", 12f, vec.X, vec.Y);
+
+                angle += step;
+            }
+
+            gfx.DrawEllipse(new D2DEllipse(pos, new D2DSize(radius, radius)), D2DColor.White);
+
+
+            //float testDiff = 200f;
+            //float testFact = 0.6f;
+            //float angle1 = _testAngle;
+            //float angle2 = _testAngle + testDiff;
+            ////float angleDiff = Helpers.AngleDiff(angle1, angle2);
+            ////float angleDiff = Helpers.LerpAngle(angle1, angle2, 0.5f);
+            //float angleDiff = Helpers.Lerp(angle1, angle2, testFact);
+            //float angleDiff2 = Helpers.ClampAngle(Helpers.LerpAngle(angle1, angle2, testFact));
+
+            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle1) * (radius), D2DColor.Red);
+            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2) * (radius), D2DColor.Blue);
+            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2 + angleDiff) * (radius), D2DColor.Yellow);
+
+            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle1) * (radius), D2DColor.Red);
+            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2) * (radius), D2DColor.Blue);
+            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angleDiff) * (radius), D2DColor.Yellow);
+            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angleDiff2) * (radius), D2DColor.Green);
+
+            //if (!_isPaused)
+            //    _testAngle -= 1f;
+        }
+
 
         private void PauseRender()
         {
@@ -325,9 +394,11 @@ namespace ProNav
             for (int i = 0; i < _targets.Count; i++)
             {
                 var targ = _targets[i];
-                var missile = new GuidedMissile(_player, targ as Target);
+                var missile = new GuidedMissile(_player, targ as Target, _guidanceType);
                 _missiles.Add(missile);
             }
+
+            Debug.WriteLine("----");
         }
 
         private void TargetAllWithBullet()
@@ -474,6 +545,8 @@ namespace ProNav
 
                 case 'o':
                     //AccTest();
+                    //Test();
+                    //Helpers.Rnd = new Random(1234);
                     break;
             }
         }
@@ -524,10 +597,29 @@ namespace ProNav
 
         private void Form1_MouseWheel(object? sender, MouseEventArgs e)
         {
-            if (e.Delta > 0)
-                _player.Rotation += ROTATE_RATE * 1f;
+            if (!_shiftDown)
+            {
+                if (e.Delta > 0)
+                    _player.Rotation += ROTATE_RATE * 1f;
+                else
+                    _player.Rotation -= ROTATE_RATE * 1f;
+
+                Debug.WriteLine($"PlrRot: {_player.Rotation}");
+            }
             else
-                _player.Rotation -= ROTATE_RATE * 1f;
+            {
+                var len = Enum.GetNames(typeof(GuidedMissile.GuidanceType)).Length;
+                var cur = (int)_guidanceType;
+                int next = cur;
+
+                if (e.Delta < 0)
+                    next = (next + 1) % len;
+                else
+                    next = (next - 1) < 0 ? len - 1 : next - 1;
+
+                _guidanceType = (GuidedMissile.GuidanceType)next;
+            }
+
         }
 
         private void Form1_ResizeEnd(object sender, EventArgs e)
@@ -543,6 +635,16 @@ namespace ProNav
         private void Form1_SizeChanged(object sender, EventArgs e)
         {
             ResizeGfx();
+        }
+
+        private void Form1_KeyDown(object sender, KeyEventArgs e)
+        {
+            _shiftDown = e.Shift;
+        }
+
+        private void Form1_KeyUp(object sender, KeyEventArgs e)
+        {
+            _shiftDown = e.Shift;
         }
     }
 }

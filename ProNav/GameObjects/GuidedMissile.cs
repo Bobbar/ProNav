@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using unvell.D2DLib;
 
 namespace ProNav.GameObjects
@@ -69,23 +64,23 @@ namespace ProNav.GameObjects
         private bool _missedTarget = false;
         private float _reEngageMod = 0f;
 
-        private const float LIFESPAN = 70f;
+        private const float LIFESPAN = 50f;
         private float _age = 0;
         private const float THRUST = 6000f;
-        private const float MASS = 35.3f;
-        private float FUEL = 50f;
+        private const float MASS = 25f;//35.3f;
+        private float FUEL = 80f;
         private float _thrustBoost = 0;
         private float _maxGs = float.MinValue;
 
         // Filters for guidance I/O.
         private SmoothFloat _impactDeltaSmooth = new SmoothFloat(1);
-        private SmoothFloat _rotAmtSmooth = new SmoothFloat(1);
+        private SmoothFloat _rotAmtSmooth = new SmoothFloat(5);
         private SmoothFloat _angleDiffSmooth = new SmoothFloat(5);
         private SmoothDouble _targAngleDeltaSmooth = new SmoothDouble(7);
         private SmoothFloat _dvSmooth = new SmoothFloat(1);
         private SmoothDouble _ftiSmooth = new SmoothDouble(1);
         private SmoothFloat _closingRateSmooth = new SmoothFloat(5);
-        private SmoothPos _impactPntSmooth = new SmoothPos(1);
+        private SmoothPos _impactPntSmooth = new SmoothPos(3);
         private SmoothPos _dirSmooth = new SmoothPos(5);
         private SmoothPos _aimPointSmooth = new SmoothPos(5);
         private SmoothPos _targetVeloSmooth = new SmoothPos(5);
@@ -94,8 +89,19 @@ namespace ProNav.GameObjects
 
         private float _renderOffset = 4f;//2.5f;
 
-        public GuidedMissile(Ship player, Target target) : base(player.Position, player.Velocity, player.Rotation)
+        public GuidanceType Guidance { get; set; } = GuidanceType.Advanced;
+
+        public enum GuidanceType
         {
+            Advanced,
+            BasicLOS,
+            SimplePN,
+            QuadraticPN
+        }
+
+        public GuidedMissile(Ship player, Target target, GuidanceType guidance = GuidanceType.Advanced) : base(player.Position, player.Velocity, player.Rotation)
+        {
+            this.Guidance = guidance;
             this.Target = target;
             this.Polygon = new RenderPoly(_missilePoly);
             this.FlamePoly = new RenderPoly(_flamePoly);
@@ -141,13 +147,30 @@ namespace ProNav.GameObjects
             var liftDrag = LiftDragForce();
             accel += dt * (liftDrag / TotalMass);
 
-            //_maxGs = Math.Max(_maxGs, accel.Length());
-            ////Debug.WriteLine($"Gs?: {accel.Length()} ({_maxGs})");
-
             // Apply guidance.
-            var rot = GuideTo(this.Target.CenterOfPolygon(), dt);
-            this.Rotation = rot;
+            float guideRotation = this.Rotation;
 
+            switch (Guidance)
+            {
+                case GuidanceType.Advanced:
+                    guideRotation = GuideToAdvanced(dt);
+                    break;
+
+                case GuidanceType.BasicLOS:
+                    guideRotation = GuideToBasicLOS(dt);
+                    break;
+
+                case GuidanceType.SimplePN:
+                    guideRotation = GuideToSimplePN(dt);
+                    break;
+
+                case GuidanceType.QuadraticPN:
+                    guideRotation = GuideToQuadraticPN(dt);
+                    break;
+
+            }
+
+            this.Rotation = guideRotation;
             this.Velocity += accel;
 
             var dist = D2DPoint.Distance(this.Position, _prevPos);
@@ -162,7 +185,7 @@ namespace ProNav.GameObjects
 
             if (Target.IsExpired)
                 this.IsExpired = true;
-           
+
             // Make the flame do flamey things...(Wiggle and color)
             FlamePoly.SourcePoly[1].X = -_rnd.Next(7 + (int)(this.Velocity.Length() * 0.1f), 9 + (int)(this.Velocity.Length() * 0.1f));
             _flameFillColor.g = _rnd.NextFloat(0.6f, 0.86f);
@@ -195,8 +218,9 @@ namespace ProNav.GameObjects
             if (this.FUEL > 0f)
                 gfx.DrawPolygon(this.FlamePoly.Poly, _flameFillColor, 1f, D2DDashStyle.Solid, _flameFillColor);
 
-            //gfx.DrawLine(this.Position, this.Position + (_liftVector * 0.05f), D2DColor.SkyBlue);
-            //gfx.DrawLine(this.Position, this.Position + (_dragVector * 0.05f), D2DColor.Red);
+            gfx.DrawLine(this.Position, this.Position + (_liftVector * 0.05f), D2DColor.SkyBlue);
+            gfx.DrawLine(this.Position, this.Position + (_dragVector * 0.05f), D2DColor.Red);
+
 
             //gfx.FillEllipse(new D2DEllipse(_finalAimPoint, new D2DSize(8f, 8f)), D2DColor.LawnGreen);
             //gfx.FillEllipse(new D2DEllipse(_stableAimPoint, new D2DSize(6f, 6f)), D2DColor.Blue);
@@ -210,10 +234,11 @@ namespace ProNav.GameObjects
 
             // Compute velo tangent. For lift/drag and rotation calcs.
             var veloNorm = D2DPoint.Normalize(this.Velocity);
-            var veloNormTan = new D2DPoint(veloNorm.Y, -Cross(veloNorm, new D2DPoint(0, 1))); // Up
+            var veloNormTan = new D2DPoint(veloNorm.Y, -veloNorm.Cross(new D2DPoint(0, 1))); // Up
 
             // Compute angle of attack.
-            var aoaRads = Cross(AngleToVector(this.Rotation), veloNorm);
+            var aoaRads = AngleToVector(this.Rotation).Cross(veloNorm);
+
             var aoa = aoaRads * (180f / (float)Math.PI);
 
             // Compute lift force as velocity tangent with angle-of-attack effecting magnitude and direction. Velocity magnitude is factored as well.
@@ -222,7 +247,7 @@ namespace ProNav.GameObjects
             // Wing & air parameters.
             const float AOA_FACT = 0.2f; // How much AoA effects drag.
             const float VELO_FACT = 0.2f; // How much velocity effects drag.
-            const float WING_AREA = 0.1f; // Area of the wing. Effects lift & drag forces.
+            const float WING_AREA = 0.4f; //0.1f; // Area of the wing. Effects lift & drag forces.
             const float MAX_LIFT = 31000f; // Max lift force allowed.
             const float MAX_AOA = 40f; // Max AoA allowed before lift force reduces. (Stall)
             const float AIR_DENSITY = 1.225f;
@@ -255,7 +280,151 @@ namespace ProNav.GameObjects
         }
 
 
-        private float GuideTo(D2DPoint target, float dt)
+        private float GuideToBasicLOS(float dt)
+        {
+            const float pValue = 0.5f;
+            const float ARM_DIST = 1200f;
+            const float MIN_CLOSE_RATE = 3f; // Min closing rate required to aim at predicted impact point.
+            const float TARG_DIST = 1000f;
+
+            var target = this.Target.CenterOfPolygon();
+            var targDist = D2DPoint.Distance(target, this.Position);
+            var veloAngle = this.Velocity.Angle();
+
+            var navigationTime = targDist / this.Velocity.Length();
+            var los = (target + Target.Velocity * navigationTime) - this.Position;
+            var angle = this.Velocity.AngleBetween(los);
+            var adjustment = pValue * angle * D2DPoint.Normalize(los);
+
+            var leadRotation = adjustment.Angle();
+            var targetRotation = (target - this.Position).Angle();
+
+            //var closingRate = _closingRateSmooth.Add(_prevTargetDist - targDist);
+            //_prevTargetDist = targDist;
+            //var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
+            //var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, closeRateFact);
+
+            var distFact = Helpers.Factor(TARG_DIST, targDist);
+            var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, distFact);
+
+            var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
+            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
+
+            _impactPnt = (target + Target.Velocity * navigationTime);
+
+            return finalRot;
+        }
+
+
+        private float GuideToSimplePN(float dt)
+        {
+            const float pValue = 1f;
+            const float ARM_DIST = 1200f;
+            const float MIN_CLOSE_RATE = 4f; // Min closing rate required to aim at predicted impact point.
+
+            var target = this.Target.CenterOfPolygon();
+            var targDist = D2DPoint.Distance(target, this.Position);
+            var veloAngle = this.Velocity.Angle();
+
+            var los = target - this.Position;
+            var navigationTime = los.Length() / this.Velocity.Length();
+            var targRelInterceptPos = los + (Target.Velocity * navigationTime);
+            _impactPnt = targRelInterceptPos;
+            targRelInterceptPos *= pValue;
+
+            var leadRotation = ((target + targRelInterceptPos) - this.Position).Angle();
+            var targetRotation = (target - this.Position).Angle();
+
+            var closingRate = _closingRateSmooth.Add(_prevTargetDist - targDist);
+            _prevTargetDist = targDist;
+            var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
+            var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, closeRateFact);
+
+            var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
+            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
+
+            return finalRot;
+        }
+
+        private float GuideToQuadraticPN(float dt)
+        {
+            const float ARM_DIST = 1200f;
+            const float MIN_CLOSE_RATE = 4f; // Min closing rate required to aim at predicted impact point.
+
+            D2DPoint direction;
+            var target = this.Target.CenterOfPolygon();
+            float target_rotation = this.Rotation;
+
+            if (GetInterceptDirection(this.Position, target, this.Velocity.Length(), this.Target.Velocity, out direction))
+            {
+                target_rotation = direction.Angle();
+            }
+            else
+            {
+                //well, I guess we cant intercept then
+            }
+
+            var targDist = D2DPoint.Distance(target, this.Position);
+            var targetRotation = (target - this.Position).Angle();
+            var veloAngle = this.Velocity.Angle();
+
+            var closingRate = _closingRateSmooth.Add(_prevTargetDist - targDist);
+            _prevTargetDist = targDist;
+            var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
+            var targetRot = Helpers.LerpAngle(targetRotation, target_rotation, closeRateFact);
+            
+            var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
+            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
+
+            return finalRot;
+        }
+
+        private int SolveQuadratic(float a, float b, float c, out float root1, out float root2)
+        {
+
+            var discriminant = b * b - 4 * a * c;
+
+            if (discriminant < 0)
+            {
+                root1 = float.PositiveInfinity;
+                root2 = -root1;
+                return 0;
+            }
+
+            root1 = (-b + (float)Math.Sqrt(discriminant)) / (2 * a);
+            root2 = (-b - (float)Math.Sqrt(discriminant)) / (2 * a);
+
+            return discriminant > 0 ? 2 : 1;
+        }
+
+        private bool GetInterceptDirection(D2DPoint origin, D2DPoint targetPosition, float missileSpeed, D2DPoint targetVelocity, out D2DPoint result)
+        {
+
+            var los = origin - targetPosition;
+            var distance = los.Length(); ;
+            var alpha = Helpers.DegreesToRads(los.AngleBetween(targetVelocity));
+            var vt = targetVelocity.Length(); ;
+            var vRatio = vt / missileSpeed;
+
+            //solve the triangle, using cossine law
+            if (SolveQuadratic(1 - (vRatio * vRatio), 2 * vRatio * distance * (float)Math.Cos(alpha), -distance * distance, out var root1, out var root2) == 0)
+            {
+                result = D2DPoint.Zero;
+                return false;   //no intercept solution possible!
+            }
+
+            var interceptVectorMagnitude = Math.Max(root1, root2);
+            var time = interceptVectorMagnitude / missileSpeed;
+            var estimatedPos = targetPosition + targetVelocity * time;
+
+            _impactPnt = estimatedPos;
+
+            result = D2DPoint.Normalize(estimatedPos - origin);
+
+            return true;
+        }
+
+        private float GuideToAdvanced(float dt)
         {
             const float MAX_ROT_RATE = 2.8f; // Max rotation rate.
             const float MIN_ROT_RATE = 1.8f; // Min rotation rate.
@@ -268,11 +437,12 @@ namespace ProNav.GameObjects
             const float IMPACT_POINT_DELTA_THRESH = 2f; // Smaller value = target impact point later. (Waits until the point has stablized more)
             const float MIN_CLOSE_RATE = 0.3f; // Min closing rate required to aim at predicted impact point.
 
+            var target = this.Target.CenterOfPolygon();
             var targetVelo = target - _prevTargPos;
             targetVelo = _targetVeloSmooth.Add(targetVelo);
 
             var veloMag = this.Velocity.Length();
-            var veloAngle = VecAngle(this.Velocity);
+            var veloAngle = this.Velocity.Angle();
 
             var deltaV = veloMag - _prevVelo;
             deltaV = _dvSmooth.Add(deltaV);
@@ -295,7 +465,7 @@ namespace ProNav.GameObjects
             //var framesToImpact = (double)targDist / (veloMag * dt);
 
             framesToImpact = _ftiSmooth.Add(framesToImpact);
-            var tarVeloAngle = VecAngleD(D2DPoint.Normalize(targetVelo));
+            var tarVeloAngle = targetVelo.Normalized().AngleD();
             var targAngleDelta = AngleDiffD(tarVeloAngle, _prevTargVeloAngle);
 
             // Handle cases where the target rotation wraps around from 360 to 0 degrees and vice versa.
@@ -346,14 +516,14 @@ namespace ProNav.GameObjects
 
             // Compute velo norm & tangent.
             var veloNorm = D2DPoint.Normalize(this.Velocity);
-            var veloNormTan = new D2DPoint(veloNorm.Y, -Cross(veloNorm, new D2DPoint(0, 1))); // Up
+            var veloNormTan = new D2DPoint(veloNorm.Y, -veloNorm.Cross(new D2DPoint(0, 1))); // Up
 
             // Compute two tangental rotations.
-            var rotAmtNorm = Cross(aimDirection, veloNorm) * (180f / (float)Math.PI);
-            var rotAmtTan = -Cross(aimDirection, veloNormTan) * (180f / (float)Math.PI);
+            var rotAmtNorm = aimDirection.Cross(veloNorm) * (180f / (float)Math.PI);
+            var rotAmtTan = -aimDirection.Cross(veloNormTan) * (180f / (float)Math.PI);
 
             // Blend between the two rotations as angle diff changes.
-            var targetDirAngle = VecAngle(aimDirection);
+            var targetDirAngle = aimDirection.Angle();
             _angleDiffSmooth.Add(AngleDiff(veloAngle, targetDirAngle));
 
             float angDiffFact;
@@ -397,7 +567,7 @@ namespace ProNav.GameObjects
 
                     _lastMissedLoc = target;
                     _missLoc = this.Position;
-                   
+
                     Debug.WriteLine($"Miss dist: {D2DPoint.Distance(_missLoc, _lastMissedLoc)}  Impact dist: {D2DPoint.Distance(_finalAimPoint, target)}  PosVImp: {D2DPoint.Distance(_finalAimPoint, this.Position)}");
                 }
             }
@@ -453,13 +623,14 @@ namespace ProNav.GameObjects
             if (framesToImpact >= 1 && framesToImpact < 6000)
             {
                 var targLoc = targetPos;
-                var angle = VecAngleD(targetVelo);
+                var angle = targetVelo.AngleD();
 
                 for (int i = 0; i <= framesToImpact; i++)
                 {
                     var avec = AngleToVectorD(angle) * targetVelo.Length();
                     targLoc += avec;
                     angle += -targAngleDelta;
+                    angle = ClampAngle((float)angle);
                 }
 
                 //var rem = framesToImpact % (int)framesToImpact;

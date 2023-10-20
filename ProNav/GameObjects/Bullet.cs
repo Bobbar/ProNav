@@ -1,11 +1,4 @@
-﻿using Microsoft.VisualBasic.Logging;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using unvell.D2DLib;
+﻿using unvell.D2DLib;
 
 namespace ProNav.GameObjects
 {
@@ -153,7 +146,8 @@ namespace ProNav.GameObjects
             if (framesToImpact >= 1 && framesToImpact < 6000)
             {
                 var targLoc = targetPos;
-                var angle = VecAngleD(targetVelo);
+                var angle = targetVelo.AngleD();
+
                 float step = 0f;
 
                 while (step < framesToImpact)

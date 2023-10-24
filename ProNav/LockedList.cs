@@ -52,6 +52,14 @@ namespace ProNav
             }
         }
 
+        public void RemoveAt(int index)
+        {
+            lock (_list)
+            {
+                _list.RemoveAt(index);
+            }
+        }
+
         public void AddRange(IEnumerable<T> values)
         {
             lock (_list)

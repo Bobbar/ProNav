@@ -14,22 +14,52 @@ namespace ProNav
     public class CollisionGrid
     {
         public List<GameObject>[] Grid;
+
         private int _sideLen = 10;
         private Size _dims = new Size();
-        private Size _maxSize = new Size();
-        private PointF _minPos = new PointF(0, 0);
+        private MinMax _minMaxPos = new MinMax();
+        private const float GROW_FACTOR = 2.0f;
 
-
-        public CollisionGrid(Size gridSize, int sideLen)
+        public CollisionGrid(SizeF gridSize, int sideLen)
         {
             _sideLen = sideLen;
-            _maxSize = gridSize;
 
-            int nX = gridSize.Width / _sideLen;
-            int nY = gridSize.Height / _sideLen;
+            int nX = (int)gridSize.Width / _sideLen;
+            int nY = (int)gridSize.Height / _sideLen;
             _dims = new Size(nX, nY);
 
+            _minMaxPos = new MinMax(0, 0, gridSize.Width, gridSize.Height);
             Grid = new List<GameObject>[_dims.Width * _dims.Height];
+        }
+
+        public void Add(GameObject obj)
+        {
+            EnsureCapacity(obj.Position);
+
+            var idx = CellIdx(OffsetPos(obj.Position));
+
+            if (idx < 0)
+                return;
+
+            if (Grid[idx] == null)
+                Grid[idx] = new List<GameObject> { obj };
+            else
+                Grid[idx].Add(obj);
+        }
+
+        public void Add(GameObjectPoly obj)
+        {
+            EnsureCapacity(obj.Position);
+
+            var idx = CellIdx(OffsetPos(obj.Position));
+
+            if (idx < 0)
+                return;
+
+            if (Grid[idx] == null)
+                Grid[idx] = new List<GameObject> { obj };
+            else
+                Grid[idx].Add(obj);
         }
 
         public void Clear()
@@ -39,13 +69,14 @@ namespace ProNav
 
         public List<GameObject> GetNearest(GameObject obj)
         {
-            var idx = ToGridCoors(obj.Position - new D2DPoint(_minPos.X, _minPos.Y));
+            var idx = ToGridCoors(OffsetPos(obj.Position));
             var nearest = new List<GameObject>();
             var ns = NCells(idx);
 
             foreach (var n in ns)
             {
-                nearest.AddRange(Grid[n]);
+                var objs = Grid[n];
+                nearest.AddRange(objs);
             }
 
             return nearest;
@@ -64,7 +95,7 @@ namespace ProNav
                 {
                     var obj = objs[j];
 
-                    if (obj == null)
+                    if (obj == null) 
                         continue;
 
                     if (obj.IsExpired)
@@ -73,94 +104,63 @@ namespace ProNav
                     }
                     else
                     {
-                        if (UpdateMin(obj.Position))
+                        EnsureCapacity(obj.Position);
+
+                        var newIdx = CellIdx(OffsetPos(obj.Position));
+
+                        if (Grid[i] != null)
                         {
-                            return;
-                        }
+                            if (newIdx != i)
+                            {
+                                if (Grid[newIdx] == null)
+                                    Grid[newIdx] = new List<GameObject> { obj };
+                                else
+                                    Grid[newIdx].Add(obj);
 
-                        var newIdx = CellIdx(obj.Position - new D2DPoint(_minPos.X, _minPos.Y));
+                                Grid[i].RemoveAt(j);
 
-                        if (newIdx > Grid.Length)
-                        {
-                            var idxCoords = CellIdxToCoord(newIdx);
-                            Resize(new Size(idxCoords.X, idxCoords.Y));
-                            return;
-                        }
-
-
-                        if (newIdx != i)
-                        {
-                            if (Grid[newIdx] == null)
-                                Grid[newIdx] = new List<GameObject> { obj };
-                            else
-                                Grid[newIdx].Add(obj);
-
-                            Grid[i].RemoveAt(j);
-
+                            }
                         }
                     }
                 }
             }
-
-            //Prune();
         }
 
-        public void Prune()
+        public void Resize(float x, float y)
         {
-            for (int i = 0; i < Grid.Length; i++)
+            EnsureCapacity(new D2DPoint(x, y));
+        }
+
+        private void EnsureCapacity(D2DPoint pos)
+        {
+            UpdateMin(pos);
+            
+            var newSize = new SizeF(_minMaxPos.Width, _minMaxPos.Height);
+            var newDims = new Size(Math.Max((int)(newSize.Width / _sideLen * GROW_FACTOR), _dims.Width), Math.Max((int)(newSize.Height / _sideLen * GROW_FACTOR), _dims.Height));
+            var newLength = newDims.Width * newDims.Height;
+
+            if (newLength > Grid.Length || newDims.Width > _dims.Width || newDims.Height > _dims.Height)
             {
-                var objs = Grid[i];
-
-                if (objs == null)
-                    continue;
-
-                for (int j = 0; j < objs.Count; j++)
-                {
-                    var obj = objs[j];
-
-                    if (obj == null)
-                        continue;
-
-                    if (obj.IsExpired)
-                        Grid[i].RemoveAt(j);
-                }
+                ResizeGrid(newDims);
             }
         }
 
-
-
-        private bool UpdateMin(D2DPoint pos)
+        private void ResizeGrid(Size newDims)
         {
-            bool updated = false;
-            var newMin = new PointF(Math.Min(_minPos.X, pos.X), Math.Min(_minPos.Y, pos.Y));
-            _minPos = newMin;
-            var maxIdx = CellIdx(new D2DPoint(_maxSize.Width + -newMin.X, _maxSize.Height + -newMin.Y));
+            _dims = newDims;
 
-            if (maxIdx > Grid.Length)
-            {
-                Resize(new Size(_dims.Width + (-(int)_minPos.X / _sideLen), _dims.Height + (-(int)_minPos.Y / _sideLen)));
-                updated = true;
-            }
-
-            return updated;
-        }
-
-        private void Resize(Size newSize)
-        {
-            const int padding = 40;
-
-            _dims = new Size(newSize.Width >= _dims.Width ? newSize.Width + padding : _dims.Width, newSize.Height >= _dims.Height ? newSize.Height + padding : _dims.Height);
             var newGrid = new List<GameObject>[_dims.Width * _dims.Height];
 
             Array.Copy(Grid, newGrid, Grid.Length);
-            Grid = null;
             Grid = newGrid;
 
             Debug.WriteLine($"Resize: {_dims}");
-
-            Update();
         }
 
+        private void UpdateMin(D2DPoint pos)
+        {
+            _minMaxPos.Update(pos.X, pos.Y);
+        }
 
         public int ObjCount()
         {
@@ -176,59 +176,27 @@ namespace ProNav
             return count;
         }
 
-
-        public void Add(GameObject obj)
+        private D2DPoint OffsetPos(D2DPoint pos)
         {
-            UpdateMin(obj.Position);
-
-            var idx = CellIdx(obj.Position - new D2DPoint(_minPos.X, _minPos.Y));
-
-            if (idx < 0)
-                return;
-
-            if (Grid[idx] == null)
-                Grid[idx] = new List<GameObject> { obj };
-            else
-                Grid[idx].Add(obj);
+            return pos - new D2DPoint(_minMaxPos.MinX, _minMaxPos.MinY);
         }
 
-        public void Add(GameObjectPoly obj)
-        {
-            UpdateMin(obj.Position);
-
-            var idx = CellIdx(obj.Position - new D2DPoint(_minPos.X, _minPos.Y));
-
-            if (idx < 0)
-                return;
-
-            if (Grid[idx] == null)
-                Grid[idx] = new List<GameObject> { obj };
-            else
-                Grid[idx].Add(obj);
-        }
+       
 
         private Point ToGridCoors(D2DPoint pnt)
         {
-            return new Point((int)Math.Floor(pnt.Y / _sideLen), (int)Math.Floor(pnt.X / _sideLen));
+            return new Point((int)Math.Floor(pnt.X / _sideLen), (int)Math.Floor(pnt.Y / _sideLen));
         }
 
         private int CellIdx(D2DPoint pnt)
         {
-            return CellIdx((int)Math.Floor(pnt.Y / _sideLen), (int)Math.Floor(pnt.X / _sideLen));
+            return CellIdx((int)Math.Floor(pnt.X / _sideLen), (int)Math.Floor(pnt.Y / _sideLen));
         }
 
         private int CellIdx(int x, int y)
         {
-            return y * _dims.Height + x;
+            return y * _dims.Width + x;
         }
-
-        private Point CellIdxToCoord(int idx)
-        {
-            int x = idx / _dims.Height;
-            int y = idx % _dims.Height;
-            return new Point(x, y);
-        }
-
 
         private List<int> NCells(Point pnt)
         {
@@ -247,12 +215,76 @@ namespace ProNav
                         if (Grid[cellIdx] != null)
                             ns.Add(cellIdx);
                     }
-
                 }
             }
 
             return ns;
         }
 
+        private class MinMax
+        {
+            public float MinX;
+            public float MinY;
+            public float MaxX;
+            public float MaxY;
+
+            public float Width
+            {
+                get
+                {
+                    return Math.Abs(MinX - MaxX);
+                }
+            }
+
+            public float Height
+            {
+                get
+                {
+                    return Math.Abs(MinY - MaxY);
+                }
+            }
+
+            public MinMax()
+            {
+                MinX = float.MaxValue;
+                MinY = float.MaxValue;
+                MaxX = float.MinValue;
+                MaxY = float.MinValue;
+            }
+
+            public MinMax(float minX, float minY, float maxX, float maxY)
+            {
+                MinX = minX;
+                MinY = minY;
+                MaxX = maxX;
+                MaxY = maxY;
+            }
+
+            public void Update(float x, float y)
+            {
+                MinX = Math.Min(MinX, x);
+                MinY = Math.Min(MinY, y);
+                MaxX = Math.Max(MaxX, x);
+                MaxY = Math.Max(MaxY, y);
+            }
+
+            public void Update(MinMax minMax)
+            {
+                MinX = Math.Min(MinX, minMax.MinX);
+                MinY = Math.Min(MinY, minMax.MinY);
+                MaxX = Math.Max(MaxX, minMax.MaxX);
+                MaxY = Math.Max(MaxY, minMax.MaxY);
+            }
+
+            public void Reset()
+            {
+                MinX = float.MaxValue;
+                MinY = float.MaxValue;
+                MaxX = float.MinValue;
+                MaxY = float.MinValue;
+            }
+        }
+
     }
+
 }

@@ -127,7 +127,8 @@ namespace ProNav
             _viewPortSize = new D2DSize(this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
             _viewPortRect = new D2DRect(0, 0, this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
 
-            _colGrid = new CollisionGrid(new Size((int)(_viewPortSize.width), (int)(_viewPortSize.height)), _colGridSideLen);
+            _colGrid.Resize(_viewPortSize.width, _viewPortSize.height);
+            //_colGrid = new CollisionGrid(new Size((int)(_viewPortSize.width), (int)(_viewPortSize.height)), _colGridSideLen);
 
             ResumeRender();
         }
@@ -348,7 +349,7 @@ namespace ProNav
                 var missile = _missiles[o];
 
                 if (missile.IsExpired)
-                    _missiles.Remove(missile);
+                    _missiles.RemoveAt(o);
             }
 
             for (int o = 0; o < _targets.Count; o++)
@@ -356,7 +357,7 @@ namespace ProNav
                 var targ = _targets[o];
 
                 if (targ.IsExpired)
-                    _targets.Remove(targ);
+                    _targets.RemoveAt(o);
             }
 
             for (int o = 0; o < _bullets.Count; o++)
@@ -364,7 +365,7 @@ namespace ProNav
                 var bullet = _bullets[o];
 
                 if (bullet.IsExpired)
-                    _bullets.Remove(bullet);
+                    _bullets.RemoveAt(o);
             }
 
         }
@@ -469,8 +470,8 @@ namespace ProNav
             {
                 var targ = _targets[i];
                 var missile = new GuidedMissile(_player, targ as Target, _guidanceType);
+                
                 _missiles.Add(missile);
-
                 _colGrid.Add(missile);
             }
 
@@ -496,31 +497,30 @@ namespace ProNav
             const float lifetime = 0.4f;//0.2f;
             float angle = 0f;
 
-            float radStep = 0.05f;
-            while (angle <= Helpers.DegreesToRads(360f))
+            //float radStep = 0.05f;
+            //while (angle <= Helpers.DegreesToRads(360f))
+            //{
+            //    var vec = Helpers.AngleToVectorRads(angle) * velo;
+            //    var bullet = new Bullet(pos, vec, lifetime);
+
+            //    _bullets.Add(bullet);
+            //    _colGrid.Add(bullet);
+
+            //    angle += radStep;
+            //}
+
+
+            float radStep = 1f;
+            for (int i = 0; i < numParticles; i++)
             {
-                var vec = Helpers.AngleToVectorRads(angle) * velo;
+                var vec = new D2DPoint((float)Math.Cos(angle * radStep) * velo, (float)Math.Sin(angle * radStep) * velo);
                 var bullet = new Bullet(pos, vec, lifetime);
-                
+
                 _bullets.Add(bullet);
                 _colGrid.Add(bullet);
 
-                angle += radStep;
+                angle += (float)(2f * Math.PI / numParticles);
             }
-
-
-            //float radStep = 1f;
-            //for (int i = 0; i < numParticles; i++)
-            //{
-            //    var vec = new D2DPoint((float)Math.Cos(angle * radStep) * velo, (float)Math.Sin(angle * radStep) * velo);
-            //    var bullet = new Bullet(pos, vec, lifetime);
-            //    _bullets.Add(bullet);
-
-            //    _colGrid.Add(bullet);
-
-
-            //    angle += (float)(2f * Math.PI / numParticles);
-            //}
         }
 
         private void Clear()
@@ -530,6 +530,20 @@ namespace ProNav
             _targets.Clear();
             _bullets.Clear();
             _colGrid.Clear();
+            ResumeRender();
+        }
+
+        private void Benchmark()
+        {
+            PauseRender();
+            Clear();
+
+            SpawnTargets(20);
+
+
+            for (int i = 0; i < 200; i++)
+                TargetAllWithBullet();
+
             ResumeRender();
         }
 
@@ -654,6 +668,7 @@ namespace ProNav
                     //AccTest();
                     //Test();
                     //Helpers.Rnd = new Random(1234);
+                    //Benchmark();
                     break;
             }
         }

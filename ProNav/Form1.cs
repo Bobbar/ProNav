@@ -14,9 +14,9 @@ namespace ProNav
         private D2DGraphics _gfx;
         private Task _renderThread;
 
-        private const float DT = 0.1f;//0.08f;
+        private const float DT = 0.1f;
         private const float RENDER_SCALE = -0.3f;
-        private const int PHYSICS_STEPS = 8;//10;
+        private const int PHYSICS_STEPS = 8;
         private const float ROTATE_RATE = 2f;
 
         private float _zoomScale = 0.2f;
@@ -57,23 +57,27 @@ namespace ProNav
         private bool _fireBurst = false;
         private bool _motionBlur = false;
         private bool _shiftDown = false;
+        private bool _useCollisionGrid = true;
+        private bool _renderEveryStep = true;
 
         private const int BURST_NUM = 10;
         private const int BURST_FRAMES = 3;
         private int _burstCount = 0;
         private int _burstFrame = 0;
+        private long _lastRenderTime = 0;
+        private float _renderFPS = 0;
 
         private LockedList<GameObjectPoly> _missiles = new LockedList<GameObjectPoly>();
         private LockedList<GameObjectPoly> _targets = new LockedList<GameObjectPoly>();
         private LockedList<GameObject> _bullets = new LockedList<GameObject>();
 
-        private int _colGridSideLen = 50;
+        private int _colGridSideLen = 100;
         private CollisionGrid _colGrid;
 
         private Ship _player = new Ship();
         private GuidedMissile.GuidanceType _guidanceType = GuidedMissile.GuidanceType.Advanced;
 
-        private D2DColor _blurColor = new D2DColor(0.1f, D2DColor.Black);
+        private D2DColor _blurColor = new D2DColor(0.05f, D2DColor.Black);
         private D2DPoint _infoPosition = new D2DPoint(30, 30);
 
         private Random _rnd => Helpers.Rnd;
@@ -128,7 +132,6 @@ namespace ProNav
             _viewPortRect = new D2DRect(0, 0, this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
 
             _colGrid.Resize(_viewPortSize.width, _viewPortSize.height);
-            //_colGrid = new CollisionGrid(new Size((int)(_viewPortSize.width), (int)(_viewPortSize.height)), _colGridSideLen);
 
             ResumeRender();
         }
@@ -162,20 +165,29 @@ namespace ProNav
                         _targets.ForEach(o => o.Update(partialDT, _viewPortSize, RENDER_SCALE));
                         _bullets.ForEach(o => o.Update(partialDT, _viewPortSize, RENDER_SCALE));
 
-                        _missiles.ForEach(o => o.Render(_gfx));
-                        _targets.ForEach(o => o.Render(_gfx));
-                        _bullets.ForEach(o => o.Render(_gfx));
+                        if (_renderEveryStep)
+                        {
+                            _missiles.ForEach(o => o.Render(_gfx));
+                            _targets.ForEach(o => o.Render(_gfx));
+                            _bullets.ForEach(o => o.Render(_gfx));
 
-                        //DoCollisions();
-                        DoCollisionsGrid();
+                        }
+
+                        if (_useCollisionGrid)
+                            DoCollisionsGrid();
+                        else
+                            DoCollisions();
                     }
 
                     _oneStep = false;
                 }
 
-                //_missiles.ForEach(o => o.Render(_gfx));
-                //_targets.ForEach(o => o.Render(_gfx));
-                //_bullets.ForEach(o => o.Render(_gfx));
+                if (!_renderEveryStep || _isPaused)
+                {
+                    _missiles.ForEach(o => o.Render(_gfx));
+                    _targets.ForEach(o => o.Render(_gfx));
+                    _bullets.ForEach(o => o.Render(_gfx));
+                }
 
                 _player.Update(DT, _viewPortSize, RENDER_SCALE);
                 _player.Render(_gfx);
@@ -186,6 +198,9 @@ namespace ProNav
 
                 _gfx.EndRender();
 
+                var fps = TimeSpan.TicksPerSecond / (float)(DateTime.Now.Ticks - _lastRenderTime);
+                _lastRenderTime = DateTime.Now.Ticks;
+                _renderFPS = fps;
 
                 if (_fireBurst)
                 {
@@ -213,88 +228,6 @@ namespace ProNav
                 }
             }
         }
-
-        private void DrawGrid(D2DGraphics gfx)
-        {
-            int sideLen = 50;
-            int rects = 0;
-            for (int x = 0; x < this.Width / sideLen; x++)
-            {
-                for (int y = 0; y < this.Height / sideLen; y++)
-                {
-                    gfx.DrawRectangle(new D2DRect(new D2DPoint(x * sideLen, y * sideLen), new D2DSize(sideLen, sideLen)), D2DColor.LightGray);
-                    rects++;
-                }
-            }
-
-
-        }
-
-        private void DrawOverlays(D2DGraphics gfx)
-        {
-            //DrawRadial(_gfx, new D2DPoint(this.Width * 0.5f, this.Height * 0.5f));
-            DrawInfo(_gfx, _infoPosition);
-
-            //DrawGrid(gfx);
-        }
-
-        private void DrawInfo(D2DGraphics gfx, D2DPoint pos)
-        {
-            string infoText = string.Empty;
-            infoText += $"Guidance Type: {_guidanceType.ToString()}\n";
-
-            var numObj = _missiles.Count + _targets.Count + _bullets.Count;
-            infoText += $"Num Objects: {numObj}\n";
-
-            gfx.DrawText(infoText, D2DColor.GreenYellow, "Consolas", 12f, pos.X, pos.Y);
-        }
-
-
-        private float _testAngle = 0f;
-        private void DrawRadial(D2DGraphics gfx, D2DPoint pos)
-        {
-            const float radius = 300f;
-            const float step = 10f;
-
-            float angle = 0f;
-
-            while (angle < 360f)
-            {
-                var vec = Helpers.AngleToVectorDegrees(angle);
-                vec = pos + (vec * radius);
-
-                gfx.DrawLine(pos, vec, D2DColor.Gray);
-
-                gfx.DrawText(angle.ToString(), D2DColor.White, "Consolas", 12f, vec.X, vec.Y);
-
-                angle += step;
-            }
-
-            gfx.DrawEllipse(new D2DEllipse(pos, new D2DSize(radius, radius)), D2DColor.White);
-
-
-            //float testDiff = 200f;
-            //float testFact = 0.6f;
-            //float angle1 = _testAngle;
-            //float angle2 = _testAngle + testDiff;
-            ////float angleDiff = Helpers.AngleDiff(angle1, angle2);
-            ////float angleDiff = Helpers.LerpAngle(angle1, angle2, 0.5f);
-            //float angleDiff = Helpers.Lerp(angle1, angle2, testFact);
-            //float angleDiff2 = Helpers.ClampAngle(Helpers.LerpAngle(angle1, angle2, testFact));
-
-            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle1) * (radius), D2DColor.Red);
-            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2) * (radius), D2DColor.Blue);
-            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2 + angleDiff) * (radius), D2DColor.Yellow);
-
-            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle1) * (radius), D2DColor.Red);
-            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2) * (radius), D2DColor.Blue);
-            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angleDiff) * (radius), D2DColor.Yellow);
-            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angleDiff2) * (radius), D2DColor.Green);
-
-            //if (!_isPaused)
-            //    _testAngle -= 1f;
-        }
-
 
         private void PauseRender()
         {
@@ -332,10 +265,8 @@ namespace ProNav
                 var targ = _targets[r] as Target;
                 var nearest = _colGrid.GetNearest(targ);
 
-                for (int i = 0; i < nearest.Count; i++)
+                foreach (var obj in nearest)
                 {
-                    var obj = nearest[i];
-
                     if (targ.Contains(obj.Position) || targ.Contains(obj.Position + (obj.Velocity * (DT / 8f))))
                     {
                         targ.IsExpired = true;
@@ -367,9 +298,7 @@ namespace ProNav
                 if (bullet.IsExpired)
                     _bullets.RemoveAt(o);
             }
-
         }
-
 
         private void DoCollisions()
         {
@@ -406,7 +335,7 @@ namespace ProNav
                 var missile = _missiles[o];
 
                 if (missile.IsExpired)
-                    _missiles.Remove(missile);
+                    _missiles.RemoveAt(o);
             }
 
             for (int o = 0; o < _targets.Count; o++)
@@ -414,7 +343,7 @@ namespace ProNav
                 var targ = _targets[o];
 
                 if (targ.IsExpired)
-                    _targets.Remove(targ);
+                    _targets.RemoveAt(o);
             }
 
             for (int o = 0; o < _bullets.Count; o++)
@@ -422,7 +351,7 @@ namespace ProNav
                 var bullet = _bullets[o];
 
                 if (bullet.IsExpired)
-                    _bullets.Remove(bullet);
+                    _bullets.RemoveAt(o);
             }
 
         }
@@ -470,12 +399,12 @@ namespace ProNav
             {
                 var targ = _targets[i];
                 var missile = new GuidedMissile(_player, targ as Target, _guidanceType);
-                
+
                 _missiles.Add(missile);
                 _colGrid.Add(missile);
             }
 
-            Debug.WriteLine("----");
+            //Debug.WriteLine("----");
         }
 
         private void TargetAllWithBullet()
@@ -536,7 +465,7 @@ namespace ProNav
         private void Benchmark()
         {
             PauseRender();
-            Clear();
+            //Clear();
 
             SpawnTargets(20);
 
@@ -605,6 +534,86 @@ namespace ProNav
             ResumeRender();
         }
 
+        private void DrawOverlays(D2DGraphics gfx)
+        {
+            //DrawRadial(_gfx, new D2DPoint(this.Width * 0.5f, this.Height * 0.5f));
+            DrawInfo(_gfx, _infoPosition);
+
+            //DrawGrid(gfx);
+        }
+
+        private void DrawInfo(D2DGraphics gfx, D2DPoint pos)
+        {
+            string infoText = string.Empty;
+            infoText += $"Guidance Type: {_guidanceType.ToString()}\n";
+
+            var numObj = _missiles.Count + _targets.Count + _bullets.Count;
+            infoText += $"Num Objects: {numObj}\n";
+
+            infoText += $"FPS: {Math.Round(_renderFPS, 0)}\n";
+
+            gfx.DrawText(infoText, D2DColor.GreenYellow, "Consolas", 12f, pos.X, pos.Y);
+        }
+
+        private void DrawGrid(D2DGraphics gfx)
+        {
+            int rects = 0;
+            for (int x = 0; x < this.Width / _colGridSideLen; x++)
+            {
+                for (int y = 0; y < this.Height / _colGridSideLen; y++)
+                {
+                    gfx.DrawRectangle(new D2DRect(new D2DPoint(x * _colGridSideLen, y * _colGridSideLen), new D2DSize(_colGridSideLen, _colGridSideLen)), D2DColor.LightGray);
+                    rects++;
+                }
+            }
+        }
+
+        private float _testAngle = 0f;
+        private void DrawRadial(D2DGraphics gfx, D2DPoint pos)
+        {
+            const float radius = 300f;
+            const float step = 10f;
+
+            float angle = 0f;
+
+            while (angle < 360f)
+            {
+                var vec = Helpers.AngleToVectorDegrees(angle);
+                vec = pos + (vec * radius);
+
+                gfx.DrawLine(pos, vec, D2DColor.Gray);
+
+                gfx.DrawText(angle.ToString(), D2DColor.White, "Consolas", 12f, vec.X, vec.Y);
+
+                angle += step;
+            }
+
+            gfx.DrawEllipse(new D2DEllipse(pos, new D2DSize(radius, radius)), D2DColor.White);
+
+
+            //float testDiff = 200f;
+            //float testFact = 0.6f;
+            //float angle1 = _testAngle;
+            //float angle2 = _testAngle + testDiff;
+            ////float angleDiff = Helpers.AngleDiff(angle1, angle2);
+            ////float angleDiff = Helpers.LerpAngle(angle1, angle2, 0.5f);
+            //float angleDiff = Helpers.Lerp(angle1, angle2, testFact);
+            //float angleDiff2 = Helpers.ClampAngle(Helpers.LerpAngle(angle1, angle2, testFact));
+
+            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle1) * (radius), D2DColor.Red);
+            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2) * (radius), D2DColor.Blue);
+            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2 + angleDiff) * (radius), D2DColor.Yellow);
+
+            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle1) * (radius), D2DColor.Red);
+            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2) * (radius), D2DColor.Blue);
+            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angleDiff) * (radius), D2DColor.Yellow);
+            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angleDiff2) * (radius), D2DColor.Green);
+
+            //if (!_isPaused)
+            //    _testAngle -= 1f;
+        }
+
+
 
         private void Form1_KeyPress(object sender, KeyPressEventArgs e)
         {
@@ -633,7 +642,7 @@ namespace ProNav
 
                 case 'r':
                     //SpawnTargets(1);
-                    SpawnTargets(10);
+                    SpawnTargets(5);
 
                     break;
 
@@ -646,11 +655,6 @@ namespace ProNav
                     break;
 
                 case 'c':
-                    //PauseRender();
-                    //_missiles.Clear();
-                    //_targets.Clear();
-                    //_bullets.Clear();
-                    //ResumeRender();
                     Clear();
                     break;
 

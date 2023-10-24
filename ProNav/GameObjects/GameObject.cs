@@ -95,8 +95,8 @@ namespace ProNav.GameObjects
 
         protected float AngleDiff(float a, float b) => Helpers.AngleDiff(a, b);
         protected double AngleDiffD(double a, double b) => Helpers.AngleDiffD(a, b);
-        protected D2DPoint AngleToVector(float angle) => Helpers.AngleToVector(angle);
-        protected D2DPoint AngleToVectorD(double angle) => Helpers.AngleToVectorD(angle);
+        protected D2DPoint AngleToVector(float angle) => Helpers.AngleToVectorDegrees(angle);
+        protected D2DPoint AngleToVectorD(double angle) => Helpers.AngleToVectorDegreesD(angle);
         protected float ClampAngle(float angle) => Helpers.ClampAngle(angle);
         
     }

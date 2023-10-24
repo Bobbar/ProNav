@@ -92,7 +92,7 @@ namespace ProNav.GameObjects
 
             const float proxyDetDist = 100f;
 
-            if (D2DPoint.Distance(this.Position, this.Target.Position) < proxyDetDist && !this.Target.IsExpired)
+            if (D2DPoint.Distance(this.Position, this.Target.Position) < proxyDetDist && !this.Target.IsExpired && !this.IsExpired)
             {
                 AddExplosionCallback(this.Position);
                 this.IsExpired = true;

@@ -11,7 +11,7 @@ namespace ProNav
     /// Wraps <see cref="List{T}"/> with locks for thread-safe-ish useage.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    internal class LockedList<T> : IEnumerable<T>
+    public class LockedList<T> : IEnumerable<T>
     {
         private List<T> _list;
 

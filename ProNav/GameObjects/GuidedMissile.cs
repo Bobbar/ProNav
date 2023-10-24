@@ -349,7 +349,7 @@ namespace ProNav.GameObjects
         private float GuideToQuadraticPN(float dt)
         {
             const float ARM_DIST = 1200f;
-            const float MIN_CLOSE_RATE = 4f; // Min closing rate required to aim at predicted impact point.
+            const float MIN_CLOSE_RATE = 10f; // Min closing rate required to aim at predicted impact point.
 
             D2DPoint direction;
             var target = this.Target.CenterOfPolygon();
@@ -381,8 +381,7 @@ namespace ProNav.GameObjects
 
         private int SolveQuadratic(float a, float b, float c, out float root1, out float root2)
         {
-
-            var discriminant = b * b - 4 * a * c;
+            var discriminant = b * b - 4f * a * c;
 
             if (discriminant < 0)
             {
@@ -391,10 +390,10 @@ namespace ProNav.GameObjects
                 return 0;
             }
 
-            root1 = (-b + (float)Math.Sqrt(discriminant)) / (2 * a);
-            root2 = (-b - (float)Math.Sqrt(discriminant)) / (2 * a);
+            root1 = (-b + (float)Math.Sqrt(discriminant)) / (2f * a);
+            root2 = (-b - (float)Math.Sqrt(discriminant)) / (2f * a);
 
-            return discriminant > 0 ? 2 : 1;
+            return discriminant > 0f ? 2 : 1;
         }
 
         private bool GetInterceptDirection(D2DPoint origin, D2DPoint targetPosition, float missileSpeed, D2DPoint targetVelocity, out D2DPoint result)
@@ -550,8 +549,8 @@ namespace ProNav.GameObjects
             // Increase rotation authority as we approach the arm distance.
             var rotAuthority = Helpers.Factor(_distTraveled, ARM_DIST);
 
-            // Increase thrust during initial launch phase.
-            _thrustBoost = THRUST * (1f - rotAuthority);
+            //// Increase thrust during initial launch phase.
+            //_thrustBoost = THRUST * (1f - rotAuthority);
 
             // Detect when we miss the target.
             if (closingRate < MIN_CLOSE_RATE)
@@ -568,7 +567,7 @@ namespace ProNav.GameObjects
                     _lastMissedLoc = target;
                     _missLoc = this.Position;
 
-                    Debug.WriteLine($"Miss dist: {D2DPoint.Distance(_missLoc, _lastMissedLoc)}  Impact dist: {D2DPoint.Distance(_finalAimPoint, target)}  PosVImp: {D2DPoint.Distance(_finalAimPoint, this.Position)}");
+                    //Debug.WriteLine($"Miss dist: {D2DPoint.Distance(_missLoc, _lastMissedLoc)}  Impact dist: {D2DPoint.Distance(_finalAimPoint, target)}  PosVImp: {D2DPoint.Distance(_finalAimPoint, this.Position)}");
                 }
             }
             else

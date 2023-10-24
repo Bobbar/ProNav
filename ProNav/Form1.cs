@@ -67,6 +67,9 @@ namespace ProNav
         private LockedList<GameObjectPoly> _targets = new LockedList<GameObjectPoly>();
         private LockedList<GameObject> _bullets = new LockedList<GameObject>();
 
+        private int _colGridSideLen = 50;
+        private CollisionGrid _colGrid;
+
         private Ship _player = new Ship();
         private GuidedMissile.GuidanceType _guidanceType = GuidedMissile.GuidanceType.Advanced;
 
@@ -91,7 +94,7 @@ namespace ProNav
             StartRenderThread();
 
             _player.Position = new D2DPoint(_viewPortSize.width * 0.5f, _viewPortSize.height * 0.5f);
-            _player.FireBulletCallback = b => { _bullets.Add(b); };
+            _player.FireBulletCallback = b => { _bullets.Add(b); _colGrid.Add(b); };
         }
 
         private void StartRenderThread()
@@ -111,6 +114,8 @@ namespace ProNav
 
             _viewPortSize = new D2DSize(this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
             _viewPortRect = new D2DRect(0, 0, this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
+
+            _colGrid = new CollisionGrid(new Size((int)(_viewPortSize.width), (int)(_viewPortSize.height)), _colGridSideLen);
         }
 
         private void ResizeGfx()
@@ -121,6 +126,8 @@ namespace ProNav
 
             _viewPortSize = new D2DSize(this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
             _viewPortRect = new D2DRect(0, 0, this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
+
+            _colGrid = new CollisionGrid(new Size((int)(_viewPortSize.width), (int)(_viewPortSize.height)), _colGridSideLen);
 
             ResumeRender();
         }
@@ -158,7 +165,8 @@ namespace ProNav
                         _targets.ForEach(o => o.Render(_gfx));
                         _bullets.ForEach(o => o.Render(_gfx));
 
-                        DoCollisions();
+                        //DoCollisions();
+                        DoCollisionsGrid();
                     }
 
                     _oneStep = false;
@@ -205,10 +213,28 @@ namespace ProNav
             }
         }
 
+        private void DrawGrid(D2DGraphics gfx)
+        {
+            int sideLen = 50;
+            int rects = 0;
+            for (int x = 0; x < this.Width / sideLen; x++)
+            {
+                for (int y = 0; y < this.Height / sideLen; y++)
+                {
+                    gfx.DrawRectangle(new D2DRect(new D2DPoint(x * sideLen, y * sideLen), new D2DSize(sideLen, sideLen)), D2DColor.LightGray);
+                    rects++;
+                }
+            }
+
+
+        }
+
         private void DrawOverlays(D2DGraphics gfx)
         {
             //DrawRadial(_gfx, new D2DPoint(this.Width * 0.5f, this.Height * 0.5f));
             DrawInfo(_gfx, _infoPosition);
+
+            //DrawGrid(gfx);
         }
 
         private void DrawInfo(D2DGraphics gfx, D2DPoint pos)
@@ -233,7 +259,7 @@ namespace ProNav
 
             while (angle < 360f)
             {
-                var vec = Helpers.AngleToVector(angle);
+                var vec = Helpers.AngleToVectorDegrees(angle);
                 vec = pos + (vec * radius);
 
                 gfx.DrawLine(pos, vec, D2DColor.Gray);
@@ -295,6 +321,54 @@ namespace ProNav
             _stopRenderEvent.Reset();
             Thread.Sleep(32);
         }
+
+        private void DoCollisionsGrid()
+        {
+            _colGrid.Update();
+
+            for (int r = 0; r < _targets.Count; r++)
+            {
+                var targ = _targets[r] as Target;
+                var nearest = _colGrid.GetNearest(targ);
+
+                for (int i = 0; i < nearest.Count; i++)
+                {
+                    var obj = nearest[i];
+
+                    if (targ.Contains(obj.Position) || targ.Contains(obj.Position + (obj.Velocity * (DT / 8f))))
+                    {
+                        targ.IsExpired = true;
+                        obj.IsExpired = true;
+                    }
+                }
+            }
+
+            for (int o = 0; o < _missiles.Count; o++)
+            {
+                var missile = _missiles[o];
+
+                if (missile.IsExpired)
+                    _missiles.Remove(missile);
+            }
+
+            for (int o = 0; o < _targets.Count; o++)
+            {
+                var targ = _targets[o];
+
+                if (targ.IsExpired)
+                    _targets.Remove(targ);
+            }
+
+            for (int o = 0; o < _bullets.Count; o++)
+            {
+                var bullet = _bullets[o];
+
+                if (bullet.IsExpired)
+                    _bullets.Remove(bullet);
+            }
+
+        }
+
 
         private void DoCollisions()
         {
@@ -396,6 +470,8 @@ namespace ProNav
                 var targ = _targets[i];
                 var missile = new GuidedMissile(_player, targ as Target, _guidanceType);
                 _missiles.Add(missile);
+
+                _colGrid.Add(missile);
             }
 
             Debug.WriteLine("----");
@@ -418,15 +494,43 @@ namespace ProNav
             const int numParticles = 40;
             const float velo = 1000f;
             const float lifetime = 0.4f;//0.2f;
-            float radStep = 1.0f;
             float angle = 0f;
 
-            for (int i = 0; i < numParticles; i++)
+            float radStep = 0.05f;
+            while (angle <= Helpers.DegreesToRads(360f))
             {
-                var vec = new D2DPoint((float)Math.Cos(angle * radStep) * velo, (float)Math.Sin(angle * radStep) * velo);
-                _bullets.Add(new Bullet(pos, vec, lifetime));
-                angle += (float)(2f * Math.PI / numParticles);
+                var vec = Helpers.AngleToVectorRads(angle) * velo;
+                var bullet = new Bullet(pos, vec, lifetime);
+                
+                _bullets.Add(bullet);
+                _colGrid.Add(bullet);
+
+                angle += radStep;
             }
+
+
+            //float radStep = 1f;
+            //for (int i = 0; i < numParticles; i++)
+            //{
+            //    var vec = new D2DPoint((float)Math.Cos(angle * radStep) * velo, (float)Math.Sin(angle * radStep) * velo);
+            //    var bullet = new Bullet(pos, vec, lifetime);
+            //    _bullets.Add(bullet);
+
+            //    _colGrid.Add(bullet);
+
+
+            //    angle += (float)(2f * Math.PI / numParticles);
+            //}
+        }
+
+        private void Clear()
+        {
+            PauseRender();
+            _missiles.Clear();
+            _targets.Clear();
+            _bullets.Clear();
+            _colGrid.Clear();
+            ResumeRender();
         }
 
         private void AccTest()
@@ -514,7 +618,9 @@ namespace ProNav
                     break;
 
                 case 'r':
-                    SpawnTargets(1);
+                    //SpawnTargets(1);
+                    SpawnTargets(10);
+
                     break;
 
                 case 'a':
@@ -526,11 +632,12 @@ namespace ProNav
                     break;
 
                 case 'c':
-                    PauseRender();
-                    _missiles.Clear();
-                    _targets.Clear();
-                    _bullets.Clear();
-                    ResumeRender();
+                    //PauseRender();
+                    //_missiles.Clear();
+                    //_targets.Clear();
+                    //_bullets.Clear();
+                    //ResumeRender();
+                    Clear();
                     break;
 
                 case '=' or '+':

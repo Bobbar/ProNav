@@ -79,14 +79,20 @@ namespace ProNav
             return degrees * ((float)Math.PI / 180f);
         }
 
-        public static D2DPoint AngleToVector(float angle)
+        public static D2DPoint AngleToVectorRads(float angle)
+        {
+            var vec = new D2DPoint((float)Math.Cos(angle), (float)Math.Sin(angle));
+            return vec;
+        }
+
+        public static D2DPoint AngleToVectorDegrees(float angle)
         {
             var rads = angle * ((float)Math.PI / 180f);
             var vec = new D2DPoint((float)Math.Cos(rads), (float)Math.Sin(rads));
             return vec;
         }
 
-        public static D2DPoint AngleToVectorD(double angle)
+        public static D2DPoint AngleToVectorDegreesD(double angle)
         {
             var rads = angle * (Math.PI / 180d);
             var vec = new D2DPoint((float)Math.Cos(rads), (float)Math.Sin(rads));

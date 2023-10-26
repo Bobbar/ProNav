@@ -152,6 +152,16 @@ namespace ProNav
             return ret;
         }
 
+        public static double ClampAngleD(double angle)
+        {
+            var ret = angle % 360d;
+
+            if (ret < 0d)
+                ret += 360d;
+
+            return ret;
+        }
+
         public static float Cross(D2DPoint vector1, D2DPoint vector2)
         {
             return (vector1.X * vector2.Y) - (vector1.Y * vector2.X);

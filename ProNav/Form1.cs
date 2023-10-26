@@ -170,7 +170,6 @@ namespace ProNav
                             _missiles.ForEach(o => o.Render(_gfx));
                             _targets.ForEach(o => o.Render(_gfx));
                             _bullets.ForEach(o => o.Render(_gfx));
-
                         }
 
                         if (_useCollisionGrid)
@@ -469,7 +468,6 @@ namespace ProNav
 
             SpawnTargets(20);
 
-
             for (int i = 0; i < 200; i++)
                 TargetAllWithBullet();
 
@@ -641,8 +639,8 @@ namespace ProNav
                     break;
 
                 case 'r':
-                    //SpawnTargets(1);
-                    SpawnTargets(5);
+                    SpawnTargets(1);
+                    //SpawnTargets(5);
 
                     break;
 

@@ -62,7 +62,7 @@ namespace ProNav.GameObjects
                 this.Velocity += dt * vec;
             }
 
-            this.Velocity *= 0.99f;
+            this.Velocity *= 0.98f;
 
             FlamePoly.Update(this.Position, Rotation, renderScale + 4f);
 

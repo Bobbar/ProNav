@@ -72,18 +72,6 @@ namespace ProNav.GameObjects
         private float _thrustBoost = 0;
         private float _maxGs = float.MinValue;
 
-        // Filters for guidance I/O.
-        private SmoothFloat _impactDeltaSmooth = new SmoothFloat(1);
-        private SmoothFloat _rotAmtSmooth = new SmoothFloat(5);
-        private SmoothFloat _angleDiffSmooth = new SmoothFloat(5);
-        private SmoothDouble _targAngleDeltaSmooth = new SmoothDouble(7);
-        private SmoothFloat _dvSmooth = new SmoothFloat(1);
-        private SmoothDouble _ftiSmooth = new SmoothDouble(1);
-        private SmoothFloat _closingRateSmooth = new SmoothFloat(5);
-        private SmoothPos _impactPntSmooth = new SmoothPos(3);
-        private SmoothPos _dirSmooth = new SmoothPos(5);
-        private SmoothPos _aimPointSmooth = new SmoothPos(5);
-        private SmoothPos _targetVeloSmooth = new SmoothPos(5);
 
         private D2DColor _flameFillColor = new D2DColor(0.6f, D2DColor.Yellow);
 
@@ -219,7 +207,7 @@ namespace ProNav.GameObjects
                 gfx.DrawPolygon(this.FlamePoly.Poly, _flameFillColor, 1f, D2DDashStyle.Solid, _flameFillColor);
 
             gfx.DrawLine(this.Position, this.Position + (_liftVector * 0.05f), D2DColor.SkyBlue);
-            gfx.DrawLine(this.Position, this.Position + (_dragVector * 0.05f), D2DColor.Red);
+            gfx.DrawLine(this.Position, this.Position + (_dragVector * 0.08f), D2DColor.Red);
 
 
             //gfx.FillEllipse(new D2DEllipse(_finalAimPoint, new D2DSize(8f, 8f)), D2DColor.LawnGreen);
@@ -238,7 +226,6 @@ namespace ProNav.GameObjects
 
             // Compute angle of attack.
             var aoaRads = AngleToVector(this.Rotation).Cross(veloNorm);
-
             var aoa = aoaRads * (180f / (float)Math.PI);
 
             // Compute lift force as velocity tangent with angle-of-attack effecting magnitude and direction. Velocity magnitude is factored as well.
@@ -284,7 +271,7 @@ namespace ProNav.GameObjects
         {
             const float pValue = 0.5f;
             const float ARM_DIST = 1200f;
-            const float MIN_CLOSE_RATE = 3f; // Min closing rate required to aim at predicted impact point.
+            const float MIN_CLOSE_RATE = 1f; // Min closing rate required to aim at predicted impact point.
             const float TARG_DIST = 1000f;
 
             var target = this.Target.CenterOfPolygon();
@@ -304,8 +291,10 @@ namespace ProNav.GameObjects
             //var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
             //var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, closeRateFact);
 
-            var distFact = Helpers.Factor(TARG_DIST, targDist);
-            var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, distFact);
+            var targetRot = leadRotation;
+
+            //var distFact = Helpers.Factor(TARG_DIST, targDist);
+            //var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, distFact);
 
             var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
             var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
@@ -318,9 +307,9 @@ namespace ProNav.GameObjects
 
         private float GuideToSimplePN(float dt)
         {
-            const float pValue = 1f;
+            const float pValue = 3f;
             const float ARM_DIST = 1200f;
-            const float MIN_CLOSE_RATE = 4f; // Min closing rate required to aim at predicted impact point.
+            const float MIN_CLOSE_RATE = 1f; // Min closing rate required to aim at predicted impact point.
 
             var target = this.Target.CenterOfPolygon();
             var targDist = D2DPoint.Distance(target, this.Position);
@@ -335,10 +324,12 @@ namespace ProNav.GameObjects
             var leadRotation = ((target + targRelInterceptPos) - this.Position).Angle();
             var targetRotation = (target - this.Position).Angle();
 
-            var closingRate = _closingRateSmooth.Add(_prevTargetDist - targDist);
-            _prevTargetDist = targDist;
-            var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
-            var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, closeRateFact);
+            //var closingRate = _closingRateSmooth.Add(_prevTargetDist - targDist);
+            //_prevTargetDist = targDist;
+            //var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
+            //var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, closeRateFact);
+
+            var targetRot = leadRotation;
 
             var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
             var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
@@ -368,11 +359,13 @@ namespace ProNav.GameObjects
             var targetRotation = (target - this.Position).Angle();
             var veloAngle = this.Velocity.Angle();
 
-            var closingRate = _closingRateSmooth.Add(_prevTargetDist - targDist);
+            var closingRate = (_prevTargetDist - targDist);
             _prevTargetDist = targDist;
             var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
             var targetRot = Helpers.LerpAngle(targetRotation, target_rotation, closeRateFact);
-            
+
+            //var targetRot = target_rotation;
+
             var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
             var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
 
@@ -426,25 +419,22 @@ namespace ProNav.GameObjects
         private float GuideToAdvanced(float dt)
         {
             const float MAX_ROT_RATE = 2.8f; // Max rotation rate.
-            const float MIN_ROT_RATE = 1.8f; // Min rotation rate.
+            const float MIN_ROT_RATE = 1.0f; // Min rotation rate.
             const float MIN_ROT_SPEED = 600f; // Speed at which rotation rate will be the smallest.
             const float ARM_DIST = 600f; // How far we must travel before engaging the target.
             const float MISS_TARG_DIST = 80f; // Distance to target to be considered a miss.
             const float REENGAGE_DIST = 2500f; // How far we must be from the target before re-engaging after a miss.
             const float ROT_MOD_DIST = 1000f; // Distance to begin increasing rotation rate. (Get more aggro the closer we get)
             const float ROT_MOD_AMT = 1f; //1.5f; // Max amount to increase rot rate per above distance.
-            const float IMPACT_POINT_DELTA_THRESH = 2f; // Smaller value = target impact point later. (Waits until the point has stablized more)
+            const float IMPACT_POINT_DELTA_THRESH = 0.5f; // Smaller value = target impact point later. (Waits until the point has stablized more)
             const float MIN_CLOSE_RATE = 0.3f; // Min closing rate required to aim at predicted impact point.
 
             var target = this.Target.CenterOfPolygon();
-            var targetVelo = target - _prevTargPos;
-            targetVelo = _targetVeloSmooth.Add(targetVelo);
-
+            var targetVelo = this.Target.Velocity * dt;
             var veloMag = this.Velocity.Length();
             var veloAngle = this.Velocity.Angle();
 
             var deltaV = veloMag - _prevVelo;
-            deltaV = _dvSmooth.Add(deltaV);
             _prevVelo = veloMag;
 
             if (_prevTargPos == D2DPoint.Zero)
@@ -457,21 +447,16 @@ namespace ProNav.GameObjects
             // Closing rate and number of frames until impact.
             var targDist = D2DPoint.Distance(this.Position, target);
             var closingRate = _prevTargetDist - targDist; // What about using closing rate to predicted impact point instead of target?
-            closingRate = _closingRateSmooth.Add(closingRate);
             _prevTargetDist = targDist;
 
-            var framesToImpact = TimeOfArrival(veloMag, deltaV, targDist, dt);
-            //var framesToImpact = (double)targDist / (veloMag * dt);
-
-            framesToImpact = _ftiSmooth.Add(framesToImpact);
-            var tarVeloAngle = targetVelo.Normalized().AngleD();
+            var framesToImpact = (double)targDist / (veloMag * dt);
+            var tarVeloAngle = targetVelo.AngleD();
             var targAngleDelta = AngleDiffD(tarVeloAngle, _prevTargVeloAngle);
 
             // Handle cases where the target rotation wraps around from 360 to 0 degrees and vice versa.
             if (Math.Abs(_prevTargVeloAngle - tarVeloAngle) < 180f)
             {
                 targAngleDelta = targAngleDelta * Math.Sign(_prevTargVeloAngle - tarVeloAngle);
-                _targAngleDeltaSmooth.Add(targAngleDelta);
             }
 
             _prevTargVeloAngle = tarVeloAngle;
@@ -484,8 +469,7 @@ namespace ProNav.GameObjects
             // A mini simulation basically.
             if (_distTraveled > 0)
             {
-                impactPnt = RefineImpact(target, targetVelo, _targAngleDeltaSmooth.Current, framesToImpact, dt);
-                impactPnt = _impactPntSmooth.Add(impactPnt);
+                impactPnt = RefineImpact(target, targetVelo, targAngleDelta, framesToImpact, dt);
             }
 
             _impactPnt = impactPnt; // Red
@@ -493,24 +477,19 @@ namespace ProNav.GameObjects
             // Compute the speed (delta) of the impact point as it is refined.
             // Slower sleep = higher confidence.
             var impactPntDelta = D2DPoint.Distance(_prevImpactPnt, impactPnt);
-            _impactDeltaSmooth.Add(impactPntDelta);
             _prevImpactPnt = impactPnt;
 
             // Only update the stable aim point when the predicted impact point is moving slowly.
             // If it begins to move quickly (when the target changes velo/direction) we keep targeting the previous point until it slows down again.
-            if (_distTraveled == 0f)
-                _stableAimPoint = impactPnt;
-
-            _stableAimPoint = D2DPoint.Lerp(_stableAimPoint, impactPnt, Helpers.Factor(IMPACT_POINT_DELTA_THRESH, _impactDeltaSmooth.Current));
-            _stableAimPoint = _aimPointSmooth.Add(_stableAimPoint); // Blue
+            var impactDeltaFact = Helpers.Factor(IMPACT_POINT_DELTA_THRESH, impactPntDelta);
+            _stableAimPoint = D2DPoint.Lerp(_stableAimPoint, impactPnt, impactDeltaFact); // Blue
 
             // Begin targeting the predicted impact point once we have a positive closing rate.
             // Gradually incorporate the direction to the predicted impact point.
             // If we are moving away from the target, we can not rely on the predicted point to be accurate,
             // so just point directly at the target.
             var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
-            var aimDirection = D2DPoint.Lerp(D2DPoint.Normalize(target - this.Position), D2DPoint.Normalize(_stableAimPoint - this.Position), closeRateFact);
-            aimDirection = _dirSmooth.Add(aimDirection);
+            var aimDirection = D2DPoint.Normalize(_stableAimPoint - this.Position);
             _finalAimPoint = D2DPoint.Lerp(target, _stableAimPoint, closeRateFact); // Green
 
             // Compute velo norm & tangent.
@@ -523,20 +502,11 @@ namespace ProNav.GameObjects
 
             // Blend between the two rotations as angle diff changes.
             var targetDirAngle = aimDirection.Angle();
-            _angleDiffSmooth.Add(AngleDiff(veloAngle, targetDirAngle));
+            var targetAngleDiff = AngleDiff(veloAngle, targetDirAngle);
 
-            float angDiffFact;
-
-            if (closingRate < MIN_CLOSE_RATE)
-                angDiffFact = Helpers.Factor(Math.Abs(_angleDiffSmooth.Current), 180f);
-            else
-                angDiffFact = Helpers.Factor(Math.Abs(_angleDiffSmooth.Current), 360f);
-
-            //var angDiffFact = Helpers.Factor(Math.Abs(_angleDiffSmooth.Current), 180f); // Favors the tangent.
-            ////var angDiffFact = Helpers.Factor(Math.Abs(_angleDiffSmooth.Current), 360f); // Favors the normal.
-
+            //var angDiffFact = Helpers.Factor(Math.Abs(targetAngleDiff), 180f); // Favors the tangent.
+            var angDiffFact = Helpers.Factor(Math.Abs(targetAngleDiff), 360f); // Favors the normal.
             var rotLerp = Helpers.Lerp(rotAmtNorm, rotAmtTan, angDiffFact);
-            _rotAmtSmooth.Add(rotLerp);
 
             // Reduce rotation rate as velocity increases. Helps conserve inertia and reduce drag.
             var veloFact = Helpers.Factor(veloMag, MIN_ROT_SPEED);
@@ -548,9 +518,6 @@ namespace ProNav.GameObjects
 
             // Increase rotation authority as we approach the arm distance.
             var rotAuthority = Helpers.Factor(_distTraveled, ARM_DIST);
-
-            //// Increase thrust during initial launch phase.
-            //_thrustBoost = THRUST * (1f - rotAuthority);
 
             // Detect when we miss the target.
             if (closingRate < MIN_CLOSE_RATE)
@@ -578,46 +545,20 @@ namespace ProNav.GameObjects
 
             }
 
-
             // Reduce rotation authority if we missed until we are the specified distance away from the target.
             // This helps give us room to turn around and make another attempt.
             if (_missedTarget && targDist < REENGAGE_DIST + _reEngageMod)
                 rotAuthority = Helpers.Factor(targDist, REENGAGE_DIST + _reEngageMod);
-
+            
             // Offset our current rotation from our current velocity vector to compute the next rotation.
-            var nextRot = -(_rotAmtSmooth.Current * rotFact);
+            var nextRot = -(rotLerp * rotFact);
             return veloAngle + (nextRot * rotAuthority);
         }
 
-        private double TimeOfArrival(double velo, double dv, double dist, double dt)
-        {
-            if (velo == 0f)
-                return 0;
-
-            double pos = 0;
-            double steps = 0f;
-
-            while (pos < dist && velo > 0f)
-            {
-                velo += dv;
-
-                if (pos + (velo * dt) > dist)
-                    break;
-
-                pos += velo * dt;
-
-                steps += dt;
-            }
-
-            return steps / dt;
-        }
 
         private D2DPoint RefineImpact(D2DPoint targetPos, D2DPoint targetVelo, double targAngleDelta, double framesToImpact, float dt)
         {
             D2DPoint predicted = targetPos;
-
-            //if (Math.Abs(targAngleDelta) == 0f)
-            //    return predicted;
 
             if (framesToImpact >= 1 && framesToImpact < 6000)
             {
@@ -629,16 +570,15 @@ namespace ProNav.GameObjects
                     var avec = AngleToVectorD(angle) * targetVelo.Length();
                     targLoc += avec;
                     angle += -targAngleDelta;
-                    angle = ClampAngle((float)angle);
+                    angle = ClampAngleD(angle);
                 }
 
-                //var rem = framesToImpact % (int)framesToImpact;
-                //angle += -targAngleDelta * rem;
-                //targLoc += (AngleToVectorD(angle) * targetVelo.Length()) * (float)rem;
+                var rem = framesToImpact % (int)framesToImpact;
+                angle += -targAngleDelta * rem;
+                targLoc += (AngleToVectorD(angle) * targetVelo.Length()) * (float)rem;
 
                 predicted = targLoc;
             }
-
 
             return predicted;
         }

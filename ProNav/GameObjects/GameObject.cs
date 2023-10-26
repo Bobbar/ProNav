@@ -98,7 +98,8 @@ namespace ProNav.GameObjects
         protected D2DPoint AngleToVector(float angle) => Helpers.AngleToVectorDegrees(angle);
         protected D2DPoint AngleToVectorD(double angle) => Helpers.AngleToVectorDegreesD(angle);
         protected float ClampAngle(float angle) => Helpers.ClampAngle(angle);
-        
+        protected double ClampAngleD(double angle) => Helpers.ClampAngleD(angle);
+
     }
 
 
@@ -143,42 +144,6 @@ namespace ProNav.GameObjects
         public override void Render(D2DGraphics gfx)
         {
             gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
-        }
-
-
-        protected void ApplyTranslation(D2DPoint[] src, D2DPoint[] dst, float scale = 1f)
-        {
-            var mat = Matrix3x2.CreateScale(scale);
-            mat *= Matrix3x2.CreateRotation(this.Rotation * (float)(Math.PI / 180f), D2DPoint.Zero);
-            mat *= Matrix3x2.CreateTranslation(this.Position);
-
-            for (int i = 0; i < dst.Length; i++)
-            {
-                var transPnt = D2DPoint.Transform(src[i], mat);
-                dst[i] = transPnt;
-            }
-        }
-
-        protected void ApplyTranslation(D2DPoint[] src, D2DPoint[] dst, float rotation, D2DPoint translation, float scale = 1f)
-        {
-            var mat = Matrix3x2.CreateScale(scale);
-            mat *= Matrix3x2.CreateRotation(rotation * (float)(Math.PI / 180f), D2DPoint.Zero);
-            mat *= Matrix3x2.CreateTranslation(translation);
-
-            for (int i = 0; i < dst.Length; i++)
-            {
-                var transPnt = D2DPoint.Transform(src[i], mat);
-                dst[i] = transPnt;
-            }
-        }
-
-        protected D2DPoint ApplyTranslation(D2DPoint src, float rotation, D2DPoint translation, float scale = 1f)
-        {
-            var mat = Matrix3x2.CreateScale(scale);
-            mat *= Matrix3x2.CreateRotation(rotation * (float)(Math.PI / 180f), D2DPoint.Zero);
-            mat *= Matrix3x2.CreateTranslation(translation);
-
-            return D2DPoint.Transform(src, mat);
         }
 
         public bool Contains(D2DPoint pnt)

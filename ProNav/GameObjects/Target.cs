@@ -26,7 +26,7 @@ namespace ProNav.GameObjects
 
     public class LinearMovingTarget : Target
     {
-        private const float MIN_MAX_VELO = 350f;
+        private const float MIN_MAX_VELO = 300f;
 
         public LinearMovingTarget() { }
 
@@ -45,6 +45,8 @@ namespace ProNav.GameObjects
         public override void Render(D2DGraphics gfx)
         {
             gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
+            //gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(3, 3)), D2DColor.LightGray);
+
         }
     }
 
@@ -74,7 +76,8 @@ namespace ProNav.GameObjects
 
         public override void Render(D2DGraphics gfx)
         {
-            gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
+            gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.BlueViolet);
+            //gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(3, 3)), D2DColor.LightGray);
         }
 
     }
@@ -99,6 +102,9 @@ namespace ProNav.GameObjects
 
             this.Velocity = new D2DPoint(_rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO), _rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO));
             this.RotationSpeed = _rnd.NextFloat(-MIN_MAX_ROT, MIN_MAX_ROT);
+
+            _targRot = this.RotationSpeed;
+            _targVelo = this.Velocity;
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
@@ -128,7 +134,9 @@ namespace ProNav.GameObjects
 
         public override void Render(D2DGraphics gfx)
         {
-            gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
+            gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.OrangeRed);
+            //gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(3, 3)), D2DColor.LightGray);
+
         }
 
     }

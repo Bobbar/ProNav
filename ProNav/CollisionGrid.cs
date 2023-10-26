@@ -9,29 +9,30 @@ namespace ProNav
     /// </summary>
     public class CollisionGrid
     {
-        public List<GameObject>[] Grid;
+        private const int GROW_PADDING = 20;
 
+        private List<GameObject>[] _grid;
         private int _sideLen = 10;
         private Size _dims = new Size();
         private MinMax _bounds = new MinMax();
-        private const int GROW_PADDING = 20;
         private HashSet<int> _usedCells = new HashSet<int>(); // Used to track populated cells.
 
         public CollisionGrid(SizeF gridSize, int sideLen)
         {
             _sideLen = sideLen;
 
-            int nX = (int)gridSize.Width / _sideLen;
-            int nY = (int)gridSize.Height / _sideLen;
+            int nX = (int)(gridSize.Width / _sideLen) + GROW_PADDING;
+            int nY = (int)(gridSize.Height / _sideLen) + GROW_PADDING;
+            
             _dims = new Size(nX, nY);
-
             _bounds = new MinMax(0, 0, gridSize.Width, gridSize.Height);
-            Grid = new List<GameObject>[_dims.Width * _dims.Height];
+            
+            _grid = new List<GameObject>[_dims.Width * _dims.Height];
         }
 
         public void Add(GameObject obj)
         {
-            lock (Grid)
+            lock (_grid)
             {
                 EnsureCapacity(obj.Position);
 
@@ -40,28 +41,10 @@ namespace ProNav
                 if (idx < 0)
                     return;
 
-                if (Grid[idx] == null)
-                    Grid[idx] = NewList(obj);
+                if (_grid[idx] == null)
+                    _grid[idx] = NewList(obj);
                 else
-                    Grid[idx].Add(obj);
-            }
-        }
-
-        public void Add(GameObjectPoly obj)
-        {
-            lock (Grid)
-            {
-                EnsureCapacity(obj.Position);
-
-                var idx = CellIdx(OffsetPos(obj.Position));
-
-                if (idx < 0)
-                    return;
-
-                if (Grid[idx] == null)
-                    Grid[idx] = NewList(obj);
-                else
-                    Grid[idx].Add(obj);
+                    _grid[idx].Add(obj);
             }
         }
 
@@ -69,7 +52,7 @@ namespace ProNav
         {
             foreach (var idx in _usedCells)
             {
-                var objs = Grid[idx];
+                var objs = _grid[idx];
                 objs.Clear();
             }
         }
@@ -81,14 +64,14 @@ namespace ProNav
 
         public IEnumerable<GameObject> GetNearest(D2DPoint pos)
         {
-            lock (Grid)
+            lock (_grid)
             {
                 var idx = ToGridCoors(OffsetPos(pos));
                 var ns = NCells(idx);
 
                 foreach (var n in ns)
                 {
-                    var objs = Grid[n];
+                    var objs = _grid[n];
                     for (int i = 0; i < objs.Count; i++)
                         yield return objs[i];
                 }
@@ -100,11 +83,11 @@ namespace ProNav
         /// </summary>
         public void Update()
         {
-            var usedCells = new HashSet<int>();
+            _usedCells.Clear();
 
-            for (int i = 0; i < Grid.Length; i++)
+            for (int i = 0; i < _grid.Length; i++)
             {
-                var objs = Grid[i];
+                var objs = _grid[i];
 
                 if (objs == null)
                     continue;
@@ -118,30 +101,28 @@ namespace ProNav
 
                     if (obj.IsExpired)
                     {
-                        Grid[i].RemoveAt(j);
+                        _grid[i].RemoveAt(j);
                     }
                     else
                     {
                         EnsureCapacity(obj.Position);
 
                         var newIdx = CellIdx(OffsetPos(obj.Position));
-                        usedCells.Add(newIdx);
+                        _usedCells.Add(newIdx);
 
                         if (newIdx != i)
                         {
-                            if (Grid[newIdx] == null)
-                                Grid[newIdx] = NewList(obj);
+                            if (_grid[newIdx] == null)
+                                _grid[newIdx] = NewList(obj);
                             else
-                                Grid[newIdx].Add(obj);
+                                _grid[newIdx].Add(obj);
 
-                            Grid[i].RemoveAt(j);
+                            _grid[i].RemoveAt(j);
 
                         }
                     }
                 }
             }
-
-            _usedCells = usedCells;
         }
 
         public void Resize(float width, float height)
@@ -155,7 +136,7 @@ namespace ProNav
 
             foreach (var idx in _usedCells)
             {
-                var objs = Grid[idx];
+                var objs = _grid[idx];
                 count += objs.Count;
             }
 
@@ -168,7 +149,7 @@ namespace ProNav
 
             foreach (var idx in _usedCells)
             {
-                var objs = Grid[idx];
+                var objs = _grid[idx];
                 allObjs.AddRange(objs);
             }
 
@@ -184,23 +165,28 @@ namespace ProNav
         {
             foreach (var idx in _usedCells)
             {
-                var objs = Grid[idx];
+                var objs = _grid[idx];
 
                 for (int i = 0; i < objs.Count; i++)
                     if (objs[i].IsExpired)
-                        Grid[idx].RemoveAt(i);
+                        _grid[idx].RemoveAt(i);
             }
         }
 
         private void EnsureCapacity(D2DPoint pos)
         {
-            _bounds.Update(pos.X, pos.Y);
+            EnsureCapacity(pos.X, pos.Y);
+        }
+
+        private void EnsureCapacity(float posX, float posY)
+        {
+            _bounds.Update(posX, posY);
 
             var newSize = new SizeF(_bounds.Width, _bounds.Height);
             var newDims = new Size(Math.Max((int)((newSize.Width / _sideLen) + GROW_PADDING), _dims.Width), Math.Max((int)((newSize.Height / _sideLen) + GROW_PADDING), _dims.Height));
             var newLength = newDims.Width * newDims.Height;
 
-            if (newLength > Grid.Length || newDims.Width > _dims.Width || newDims.Height > _dims.Height)
+            if (newLength > _grid.Length || newDims.Width > _dims.Width || newDims.Height > _dims.Height)
             {
                 ResizeGrid(newDims);
             }
@@ -212,12 +198,17 @@ namespace ProNav
 
             var newGrid = new List<GameObject>[_dims.Width * _dims.Height];
 
-            Array.Copy(Grid, newGrid, Grid.Length);
-            Grid = newGrid;
+            Array.Copy(_grid, newGrid, _grid.Length);
+            _grid = newGrid;
 
             Debug.WriteLine($"Resize: {_dims}");
         }
 
+        /// <summary>
+        /// Offsets the specified position in order to normalize it to the grid location.
+        /// </summary>
+        /// <param name="pos"></param>
+        /// <returns></returns>
         private D2DPoint OffsetPos(D2DPoint pos)
         {
             return pos - new D2DPoint(_bounds.MinX, _bounds.MinY);
@@ -251,7 +242,7 @@ namespace ProNav
                     if (ox >= 0 && ox < _dims.Width && oy >= 0 && oy < _dims.Height)
                     {
                         var cellIdx = CellIdx(ox, oy);
-                        if (Grid[cellIdx] != null)
+                        if (_grid[cellIdx] != null)
                             yield return cellIdx;
                     }
                 }

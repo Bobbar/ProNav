@@ -72,6 +72,8 @@ namespace ProNav.GameObjects
         private float _thrustBoost = 0;
         private float _maxGs = float.MinValue;
 
+        private Graph _graph;
+
 
         private D2DColor _flameFillColor = new D2DColor(0.6f, D2DColor.Yellow);
 
@@ -100,6 +102,12 @@ namespace ProNav.GameObjects
             // Set initial velo.
             // Aero and guidance logic don't work if our velo is zero.
             this.Velocity = GetThrust(1f);
+
+            //_graph = new Graph(new SizeF(3000, 500), 0f, 0f);
+
+            //_graph = new Graph(new SizeF(7000, 700), new Color[] {Color.Red, Color.LightBlue}, 0f, 0f);
+            _graph = new Graph(new SizeF(7000, 1100), new Color[] { Color.Red, Color.LightBlue, Color.Blue, Color.Green, Color.Yellow }, 2);
+
         }
 
         private D2DPoint GetThrust(float dt)
@@ -208,7 +216,6 @@ namespace ProNav.GameObjects
 
             gfx.DrawLine(this.Position, this.Position + (_liftVector * 0.05f), D2DColor.SkyBlue);
             gfx.DrawLine(this.Position, this.Position + (_dragVector * 0.08f), D2DColor.Red);
-
 
             //gfx.FillEllipse(new D2DEllipse(_finalAimPoint, new D2DSize(8f, 8f)), D2DColor.LawnGreen);
             //gfx.FillEllipse(new D2DEllipse(_stableAimPoint, new D2DSize(6f, 6f)), D2DColor.Blue);
@@ -426,8 +433,8 @@ namespace ProNav.GameObjects
             const float REENGAGE_DIST = 2500f; // How far we must be from the target before re-engaging after a miss.
             const float ROT_MOD_DIST = 1000f; // Distance to begin increasing rotation rate. (Get more aggro the closer we get)
             const float ROT_MOD_AMT = 1f; //1.5f; // Max amount to increase rot rate per above distance.
-            const float IMPACT_POINT_DELTA_THRESH = 0.5f; // Smaller value = target impact point later. (Waits until the point has stablized more)
-            const float MIN_CLOSE_RATE = 0.3f; // Min closing rate required to aim at predicted impact point.
+            const float IMPACT_POINT_DELTA_THRESH = 2f; // Smaller value = target impact point later. (Waits until the point has stablized more)
+            const float MIN_CLOSE_RATE = 1f; // Min closing rate required to aim at predicted impact point.
 
             var target = this.Target.CenterOfPolygon();
             var targetVelo = this.Target.Velocity * dt;
@@ -458,7 +465,6 @@ namespace ProNav.GameObjects
             {
                 targAngleDelta = targAngleDelta * Math.Sign(_prevTargVeloAngle - tarVeloAngle);
             }
-
             _prevTargVeloAngle = tarVeloAngle;
 
             // Set initial impact point directly on the target.
@@ -490,7 +496,9 @@ namespace ProNav.GameObjects
             // so just point directly at the target.
             var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
             var aimDirection = D2DPoint.Normalize(_stableAimPoint - this.Position);
-            _finalAimPoint = D2DPoint.Lerp(target, _stableAimPoint, closeRateFact); // Green
+            //var aimDirection = D2DPoint.Lerp(D2DPoint.Normalize(target - this.Position), D2DPoint.Normalize(_stableAimPoint - this.Position), closeRateFact);
+            //_finalAimPoint = D2DPoint.Lerp(target, _stableAimPoint, closeRateFact); // Green
+            _finalAimPoint = _stableAimPoint;
 
             // Compute velo norm & tangent.
             var veloNorm = D2DPoint.Normalize(this.Velocity);
@@ -549,7 +557,7 @@ namespace ProNav.GameObjects
             // This helps give us room to turn around and make another attempt.
             if (_missedTarget && targDist < REENGAGE_DIST + _reEngageMod)
                 rotAuthority = Helpers.Factor(targDist, REENGAGE_DIST + _reEngageMod);
-            
+
             // Offset our current rotation from our current velocity vector to compute the next rotation.
             var nextRot = -(rotLerp * rotFact);
             return veloAngle + (nextRot * rotAuthority);
@@ -575,6 +583,7 @@ namespace ProNav.GameObjects
 
                 var rem = framesToImpact % (int)framesToImpact;
                 angle += -targAngleDelta * rem;
+                angle = ClampAngleD(angle);
                 targLoc += (AngleToVectorD(angle) * targetVelo.Length()) * (float)rem;
 
                 predicted = targLoc;

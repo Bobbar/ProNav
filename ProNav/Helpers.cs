@@ -63,7 +63,6 @@ namespace ProNav
             return new D2DPoint(lerpX, lerpY);
         }
 
-
         public static float Factor(float value1, float value2)
         {
             return Math.Clamp(value1 / value2, 0f, 1f);

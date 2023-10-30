@@ -167,9 +167,9 @@ namespace ProNav
 
                         if (_renderEveryStep)
                         {
-                            _missiles.ForEach(o => o.Render(_gfx));
                             _targets.ForEach(o => o.Render(_gfx));
                             _bullets.ForEach(o => o.Render(_gfx));
+                            _missiles.ForEach(o => o.Render(_gfx));
                         }
 
                         if (_useCollisionGrid)
@@ -183,9 +183,9 @@ namespace ProNav
 
                 if (!_renderEveryStep || _isPaused)
                 {
-                    _missiles.ForEach(o => o.Render(_gfx));
                     _targets.ForEach(o => o.Render(_gfx));
                     _bullets.ForEach(o => o.Render(_gfx));
+                    _missiles.ForEach(o => o.Render(_gfx));
                 }
 
                 _player.Update(DT, _viewPortSize, RENDER_SCALE);

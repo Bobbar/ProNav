@@ -116,7 +116,7 @@ namespace ProNav.GameObjects
 
     public class GameObjectPoly: GameObject
     {
-        public RenderPoly Polygon;
+        public RenderPoly Polygon = new RenderPoly();
 
 
         public GameObjectPoly()
@@ -157,7 +157,7 @@ namespace ProNav.GameObjects
             gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
         }
 
-        public bool Contains(D2DPoint pnt)
+        public virtual bool Contains(D2DPoint pnt)
         {
             int i, j = 0;
             bool c = false;

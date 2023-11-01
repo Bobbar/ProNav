@@ -12,6 +12,12 @@ namespace ProNav.GameObjects
         public D2DPoint[] Poly;
         public D2DPoint[] SourcePoly;
 
+        public RenderPoly()
+        {
+            Poly = new D2DPoint[0];
+            SourcePoly = new D2DPoint[0];
+        }
+
         public RenderPoly(D2DPoint[] polygon) 
         {
             Poly = new D2DPoint[polygon.Length];

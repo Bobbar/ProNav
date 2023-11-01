@@ -85,7 +85,7 @@ namespace ProNav.GameObjects
         {
             base.Update(dt, viewport, renderScale);
 
-            const float proxyDetDist = 100f;
+            const float proxyDetDist = 50f;
 
             if (D2DPoint.Distance(this.Position, this.Target.Position) < proxyDetDist && !this.Target.IsExpired && !this.IsExpired)
             {

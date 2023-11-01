@@ -37,12 +37,14 @@ namespace ProNav
         private const int BURST_FRAMES = 3;
         private int _burstCount = 0;
         private int _burstFrame = 0;
+
         private long _lastRenderTime = 0;
         private float _renderFPS = 0;
 
         private LockedList<GameObjectPoly> _missiles = new LockedList<GameObjectPoly>();
         private LockedList<GameObjectPoly> _targets = new LockedList<GameObjectPoly>();
         private LockedList<GameObject> _bullets = new LockedList<GameObject>();
+        private LockedList<GameObjectPoly> _explosions = new LockedList<GameObjectPoly>();
 
         private int _colGridSideLen = 100;
         private CollisionGrid _colGrid;
@@ -92,7 +94,6 @@ namespace ProNav
 
             World.UpdateViewport(this.Size);
             _colGrid = new CollisionGrid(new Size((int)(World.ViewPortSize.width), (int)(World.ViewPortSize.height)), _colGridSideLen);
-
         }
 
         private void ResizeGfx()
@@ -135,6 +136,7 @@ namespace ProNav
                         _missiles.ForEach(o => o.Update(partialDT, World.ViewPortSize, World.RenderScale));
                         _targets.ForEach(o => o.Update(partialDT, World.ViewPortSize, World.RenderScale));
                         _bullets.ForEach(o => o.Update(partialDT, World.ViewPortSize, World.RenderScale));
+                        _explosions.ForEach(o => o.Update(partialDT, World.ViewPortSize, World.RenderScale));
 
                         if (_renderEveryStep)
                         {
@@ -152,7 +154,6 @@ namespace ProNav
 
                 if (!_renderEveryStep || _isPaused)
                 {
-
                     RenderObjects(_gfx);
                 }
 
@@ -201,6 +202,7 @@ namespace ProNav
             _targets.ForEach(o => o.Render(gfx));
             _bullets.ForEach(o => o.Render(gfx));
             _missiles.ForEach(o => o.Render(gfx));
+            _explosions.ForEach(o => o.Render(gfx));
 
             if (World.ShowMissileCloseup)
                 DrawMissileOverlays(gfx);
@@ -244,10 +246,28 @@ namespace ProNav
 
                 foreach (var obj in nearest)
                 {
-                    if (targ.Contains(obj.Position) || targ.Contains(obj.Position + (obj.Velocity * (World.DT / 8f))))
+                    if (obj is Explosion)
                     {
-                        targ.IsExpired = true;
-                        obj.IsExpired = true;
+                        var exp = obj as Explosion;
+
+                        if (exp.Contains(targ.Position))
+                        {
+                            if (!targ.IsExpired)
+                                AddExplosion(targ.Position);
+
+                            targ.IsExpired = true;
+                        }
+                    }
+                    else
+                    {
+                        if (targ.Contains(obj.Position) || targ.Contains(obj.Position + (obj.Velocity * (World.DT / 8f))))
+                        {
+                            if (!targ.IsExpired)
+                                AddExplosion(targ.Position);
+
+                            targ.IsExpired = true;
+                            obj.IsExpired = true;
+                        }
                     }
                 }
             }
@@ -274,6 +294,14 @@ namespace ProNav
 
                 if (bullet.IsExpired)
                     _bullets.RemoveAt(o);
+            }
+
+            for (int e = 0; e < _explosions.Count; e++)
+            {
+                var explosion = _explosions[e];
+
+                if (explosion.IsExpired)
+                    _explosions.RemoveAt(e);
             }
         }
 
@@ -291,9 +319,9 @@ namespace ProNav
                     {
                         targ.IsExpired = true;
                         missile.IsExpired = true;
+                        AddExplosion(targ.Position);
                     }
                 }
-
 
                 for (int b = 0; b < _bullets.Count; b++)
                 {
@@ -303,6 +331,16 @@ namespace ProNav
                     {
                         targ.IsExpired = true;
                         bullet.IsExpired = true;
+                    }
+                }
+
+                for (int e = 0; e < _explosions.Count; e++)
+                {
+                    var explosion = _explosions[e];
+
+                    if (explosion.Contains(targ.Position))
+                    {
+                        targ.IsExpired = true;
                     }
                 }
             }
@@ -329,6 +367,14 @@ namespace ProNav
 
                 if (bullet.IsExpired)
                     _bullets.RemoveAt(o);
+            }
+
+            for (int e = 0; e < _explosions.Count; e++)
+            {
+                var explosion = _explosions[e];
+
+                if (explosion.IsExpired)
+                    _explosions.RemoveAt(e);
             }
 
         }
@@ -397,8 +443,15 @@ namespace ProNav
             for (int i = 0; i < _targets.Count; i++)
             {
                 var targ = _targets[i];
-                _player.FireBullet(targ as Target, p => AddBulletExplosion(p));
+                _player.FireBullet(targ as Target, p => AddExplosion(p));
             }
+        }
+
+        private void AddExplosion(D2DPoint pos) 
+        {
+            var explosion = new Explosion(pos, 200f, 0.4f);
+            _explosions.Add(explosion);
+            _colGrid.Add(explosion);
         }
 
         private void AddBulletExplosion(D2DPoint pos)
@@ -440,6 +493,7 @@ namespace ProNav
             _missiles.Clear();
             _targets.Clear();
             _bullets.Clear();
+            _explosions.Clear();
             _colGrid.Clear();
             ResumeRender();
         }
@@ -603,9 +657,6 @@ Mouse-Wheel: Rotate ship";
                 }
             }
         }
-
-      
-
 
         private void Form1_KeyPress(object sender, KeyPressEventArgs e)
         {

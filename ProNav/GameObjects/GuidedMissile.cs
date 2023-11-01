@@ -8,18 +8,6 @@ namespace ProNav.GameObjects
         public Target Target { get; set; }
 
 
-        //private static readonly D2DPoint[] _missilePoly = new D2DPoint[]
-        //{
-        //    new D2DPoint(9, 0),
-        //    new D2DPoint(6, 2),
-        //    new D2DPoint(-6, 2),
-        //    new D2DPoint(-8, 4),
-        //    new D2DPoint(-8, -4),
-        //    new D2DPoint(-6, -2),
-        //    new D2DPoint(6, -2)
-
-        //};
-
         private static readonly D2DPoint[] _missilePoly = new D2DPoint[]
        {
             new D2DPoint(14, 0),
@@ -46,8 +34,6 @@ namespace ProNav.GameObjects
 
         private float BURN_RATE
         {
-            //get { return THRUST / 1000f; }
-
             get { return (THRUST + _thrustBoost) / 2500f; }
 
         }
@@ -221,7 +207,6 @@ namespace ProNav.GameObjects
                 case GuidanceType.QuadraticPN:
                     guideRotation = GuideToQuadraticPN(dt);
                     break;
-
             }
 
 
@@ -232,7 +217,7 @@ namespace ProNav.GameObjects
                 // Control surfaces require the direct angle instead of a rotation offset by the velo angle as returned by guidance.
                 // Subtract the velo angle to make it work correctly.
                 var veloAngle = this.Velocity.Angle();
-                nextDeflect -= veloAngle; 
+                nextDeflect -= veloAngle;
 
                 _tailWing.Deflection = -nextDeflect;
                 _noseWing.Deflection = 0.5f + nextDeflect;
@@ -297,13 +282,12 @@ namespace ProNav.GameObjects
 
             _rocketBody.Render(gfx);
 
-            //gfx.DrawLine(this.Position, this.Position + (_liftVector * 0.05f), D2DColor.SkyBlue);
-            //gfx.DrawLine(this.Position, this.Position + (_dragVector * 0.08f), D2DColor.Red);
-
-            //gfx.FillEllipse(new D2DEllipse(_finalAimPoint, new D2DSize(8f, 8f)), D2DColor.LawnGreen);
-            //gfx.FillEllipse(new D2DEllipse(_stableAimPoint, new D2DSize(6f, 6f)), D2DColor.Blue);
-            //gfx.FillEllipse(new D2DEllipse(_impactPnt, new D2DSize(4f, 4f)), D2DColor.Red);
-
+            if (World.ShowTracking)
+            {
+                gfx.FillEllipse(new D2DEllipse(_finalAimPoint, new D2DSize(5f, 5f)), D2DColor.LawnGreen);
+                gfx.FillEllipse(new D2DEllipse(_stableAimPoint, new D2DSize(4f, 4f)), D2DColor.Blue);
+                gfx.FillEllipse(new D2DEllipse(_impactPnt, new D2DSize(3f, 3f)), D2DColor.Red);
+            }
         }
 
 
@@ -331,7 +315,7 @@ namespace ProNav.GameObjects
             const float VELO_FACT = 0.2f; // How much velocity effects drag.
             float WING_AREA = wing.Area; // Area of the wing. Effects lift & drag forces.
             const float MAX_LIFT = 31000f;//101000f; // Max lift force allowed.
-            const float MAX_AOA = 60f; // Max AoA allowed before lift force reduces. (Stall)
+            const float MAX_AOA = 40f; // Max AoA allowed before lift force reduces. (Stall)
             const float AIR_DENSITY = 1.225f;
             const float PARASITIC_DRAG = 0.5f;
 

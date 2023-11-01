@@ -10,7 +10,7 @@ namespace ProNav.GameObjects
 {
     public class Wing : GameObject
     {
-        private readonly float MAX_DEFLECTION = 40f;
+        private readonly float MAX_DEFLECTION = 60f;
         private readonly float MAX_VELO = 300f;
        
         public float RenderLength { get; set; }
@@ -22,6 +22,8 @@ namespace ProNav.GameObjects
             {
                 if (value >= -MAX_DEFLECTION && value <= MAX_DEFLECTION)
                     _deflection = value;
+                else
+                    _deflection = Math.Sign(value) * MAX_DEFLECTION;
             }
         } 
 
@@ -62,13 +64,15 @@ namespace ProNav.GameObjects
 
         public override void Render(D2DGraphics gfx)
         {
-            gfx.DrawLine(this.Position, this.Position + (LiftVector * 0.05f), D2DColor.SkyBlue);
-            gfx.DrawLine(this.Position, this.Position + (DragVector * 0.08f), D2DColor.Red);
-
-
+            if (World.ShowAero)
+            {
+                gfx.DrawLine(this.Position, this.Position + (LiftVector * 0.05f), D2DColor.SkyBlue);
+                gfx.DrawLine(this.Position, this.Position + (DragVector * 0.08f), D2DColor.Red);
+            }
+          
             var startB = this.Position - Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;
             var endB = this.Position + Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;
-            gfx.DrawLine(startB, endB, D2DColor.OrangeRed, 1f);
+            gfx.DrawLine(startB, endB, D2DColor.DarkGray, 1f);
 
 
             var start = this.Position - Helpers.AngleToVectorDegrees(this.Rotation) * RenderLength;

@@ -4,7 +4,7 @@ namespace ProNav.GameObjects
 {
     public class Bullet : GameObject
     {
-        public float Speed = 800f;
+        public float Speed = 600f;
         public float Lifetime = 30f;
         
         private float _age = 0;
@@ -78,17 +78,12 @@ namespace ProNav.GameObjects
 
         public override void Render(D2DGraphics gfx)
         {
-            //base.Render(gfx);
-
             gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(5, 5)), D2DColor.Yellow);
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
         {
             base.Update(dt, viewport, renderScale);
-
-            //if (this.Target.IsExpired)
-            //    this.IsExpired = true;
 
             const float proxyDetDist = 100f;
 

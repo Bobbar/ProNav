@@ -32,6 +32,7 @@ namespace ProNav.GameObjects
         public StaticTarget(D2DPoint pos) : base(pos) 
         {
             this.Polygon = new RenderPoly(GameObjectPoly.RandomPoly(this.NumPolyPoints, this.PolyRadius));
+            this.RotationSpeed = _rnd.NextFloat(-MIN_MAX_ROT, MIN_MAX_ROT);
         }
 
         public override void Render(D2DGraphics gfx)

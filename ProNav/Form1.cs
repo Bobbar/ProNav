@@ -29,7 +29,7 @@ namespace ProNav
         private bool _fireBurst = false;
         private bool _motionBlur = false;
         private bool _shiftDown = false;
-        private bool _useCollisionGrid = false;
+        private bool _useCollisionGrid = true;
         private bool _renderEveryStep = true;
         private bool _showHelp = false;
 
@@ -52,7 +52,7 @@ namespace ProNav
         private bool _useControlSurfaces = false;
 
         private D2DColor _blurColor = new D2DColor(0.05f, D2DColor.Black);
-        private D2DPoint _infoPosition = new D2DPoint(30, 30);
+        private D2DPoint _infoPosition = new D2DPoint(20, 20);
 
         private Random _rnd => Helpers.Rnd;
 
@@ -138,12 +138,8 @@ namespace ProNav
 
                         if (_renderEveryStep)
                         {
-                            _targets.ForEach(o => o.Render(_gfx));
-                            _bullets.ForEach(o => o.Render(_gfx));
-                            _missiles.ForEach(o => o.Render(_gfx));
+                            RenderObjects(_gfx);
                         }
-
-                        DrawMissileOverlays(_gfx);
 
                         if (_useCollisionGrid)
                             DoCollisionsGrid();
@@ -156,9 +152,8 @@ namespace ProNav
 
                 if (!_renderEveryStep || _isPaused)
                 {
-                    _targets.ForEach(o => o.Render(_gfx));
-                    _bullets.ForEach(o => o.Render(_gfx));
-                    _missiles.ForEach(o => o.Render(_gfx));
+
+                    RenderObjects(_gfx);
                 }
 
                 _player.Update(World.DT, World.ViewPortSize, World.RenderScale);
@@ -199,6 +194,16 @@ namespace ProNav
                     _pauseRenderEvent.Set();
                 }
             }
+        }
+
+        private void RenderObjects(D2DGraphics gfx)
+        {
+            _targets.ForEach(o => o.Render(gfx));
+            _bullets.ForEach(o => o.Render(gfx));
+            _missiles.ForEach(o => o.Render(gfx));
+
+            if (World.ShowMissileCloseup)
+                DrawMissileOverlays(gfx);
         }
 
         private void PauseRender()
@@ -512,7 +517,6 @@ namespace ProNav
 
         private void DrawOverlays(D2DGraphics gfx)
         {
-            //DrawRadial(_gfx, new D2DPoint(this.Width * 0.5f, this.Height * 0.5f));
             DrawInfo(_gfx, _infoPosition);
 
             //DrawGrid(gfx);
@@ -520,16 +524,16 @@ namespace ProNav
 
         private void DrawMissileOverlays(D2DGraphics gfx)
         {
-            foreach (var missile in _missiles)
+            var scale = 10f;
+            var zAmt = World.ZoomScale;
+            var pos = new D2DPoint(World.ViewPortSize.width * 0.5f * zAmt, World.ViewPortSize.height * 0.15f * zAmt);
+
+            for (int m = 0; m < _missiles.Count; m++)
             {
+                var missile = _missiles[m];
+
                 gfx.PushTransform();
 
-                var multi = World.ViewPortScaleMulti;
-                var sz = World.ViewPortSize;
-                var thisSz = this.Size;
-                var scale = 10f;
-                var zAmt = World.ZoomScale;
-                var pos = new D2DPoint(World.ViewPortSize.width * 0.5f * zAmt, World.ViewPortSize.height * 0.15f * zAmt);
                 var offset = new D2DPoint((-(missile.Position.X * zAmt)) * scale, (-(missile.Position.Y * zAmt)) * scale);
 
                 gfx.ScaleTransform(scale, scale);
@@ -554,11 +558,12 @@ namespace ProNav
             infoText += $"Num Objects: {numObj}\n";
 
             infoText += $"FPS: {Math.Round(_renderFPS, 0)}\n";
-
-            infoText += "\n";
+            infoText += $"Zoom: {Math.Round(World.ZoomScale, 2)}\n";
 
             if (_showHelp)
-                infoText += $@"P: Pause
+            {
+                infoText += $@"
+P: Pause
 B: Motion Blur
 T: Trails
 N: Pause/One Step
@@ -566,6 +571,9 @@ R: Spawn Target
 A: Spawn target at click pos
 M: Move ship to click pos
 C: Clear all
+I: Toggle Aero Display
+O: Toggle Missle View
+U: Toggle Guidance Tracking Dots
 +/-: Zoom
 S: Missile Type
 Shift + Mouse-Wheel: Guidance Type
@@ -573,9 +581,12 @@ Left-Click: Thrust ship
 Right-Click: Fire auto cannon
 Middle-Click: Fire missle
 Mouse-Wheel: Rotate ship";
-
+            }
             else
+            {
+                infoText += "\n";
                 infoText += "H: Show help";
+            }
 
             gfx.DrawText(infoText, D2DColor.GreenYellow, "Consolas", 12f, pos.X, pos.Y);
         }
@@ -593,71 +604,31 @@ Mouse-Wheel: Rotate ship";
             }
         }
 
-        private float _testAngle = 0f;
-        private void DrawRadial(D2DGraphics gfx, D2DPoint pos)
-        {
-            const float radius = 300f;
-            const float step = 10f;
-
-            float angle = 0f;
-
-            while (angle < 360f)
-            {
-                var vec = Helpers.AngleToVectorDegrees(angle);
-                vec = pos + (vec * radius);
-
-                gfx.DrawLine(pos, vec, D2DColor.Gray);
-
-                gfx.DrawText(angle.ToString(), D2DColor.White, "Consolas", 12f, vec.X, vec.Y);
-
-                angle += step;
-            }
-
-            gfx.DrawEllipse(new D2DEllipse(pos, new D2DSize(radius, radius)), D2DColor.White);
-
-
-            //float testDiff = 200f;
-            //float testFact = 0.6f;
-            //float angle1 = _testAngle;
-            //float angle2 = _testAngle + testDiff;
-            ////float angleDiff = Helpers.AngleDiff(angle1, angle2);
-            ////float angleDiff = Helpers.LerpAngle(angle1, angle2, 0.5f);
-            //float angleDiff = Helpers.Lerp(angle1, angle2, testFact);
-            //float angleDiff2 = Helpers.ClampAngle(Helpers.LerpAngle(angle1, angle2, testFact));
-
-            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle1) * (radius), D2DColor.Red);
-            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2) * (radius), D2DColor.Blue);
-            ////gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2 + angleDiff) * (radius), D2DColor.Yellow);
-
-            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle1) * (radius), D2DColor.Red);
-            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angle2) * (radius), D2DColor.Blue);
-            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angleDiff) * (radius), D2DColor.Yellow);
-            //gfx.DrawLine(pos, pos + Helpers.AngleToVector(angleDiff2) * (radius), D2DColor.Green);
-
-            //if (!_isPaused)
-            //    _testAngle -= 1f;
-        }
-
+      
 
 
         private void Form1_KeyPress(object sender, KeyPressEventArgs e)
         {
             switch (e.KeyChar)
             {
-                case 'p':
-                    if (!_isPaused)
-                        PauseRender();
-                    else
-                        ResumeRender();
-
+                case 'a':
+                    _spawnTargetKey = true;
                     break;
 
                 case 'b':
                     _motionBlur = !_motionBlur;
                     break;
 
-                case 't':
-                    _trailsOn = !_trailsOn;
+                case 'c':
+                    Clear();
+                    break;
+
+                case 'i':
+                    World.ShowAero = !World.ShowAero;
+                    break;
+
+                case 'm':
+                    _moveShip = true;
                     break;
 
                 case 'n':
@@ -665,22 +636,32 @@ Mouse-Wheel: Rotate ship";
                     _oneStep = true;
                     break;
 
+                case 'o':
+                    World.ShowMissileCloseup = !World.ShowMissileCloseup;
+                    break;
+
+                case 'p':
+                    if (!_isPaused)
+                        PauseRender();
+                    else
+                        ResumeRender();
+                    break;
+
                 case 'r':
                     SpawnTargets(1);
                     //SpawnTargets(5);
-
                     break;
 
-                case 'a':
-                    _spawnTargetKey = true;
+                case 's':
+                    _useControlSurfaces = !_useControlSurfaces;
                     break;
 
-                case 'm':
-                    _moveShip = true;
+                case 't':
+                    _trailsOn = !_trailsOn;
                     break;
 
-                case 'c':
-                    Clear();
+                case 'u':
+                    World.ShowTracking = !World.ShowTracking;
                     break;
 
                 case '=' or '+':
@@ -691,16 +672,6 @@ Mouse-Wheel: Rotate ship";
                 case '-':
                     World.ZoomScale -= 0.05f;
                     ResizeGfx();
-                    break;
-
-                case 'o':
-                    //AccTest();
-                    //Test();
-                    //Helpers.Rnd = new Random(1234);
-                    //Benchmark();
-                    break;
-                case 's':
-                    _useControlSurfaces = !_useControlSurfaces;
                     break;
             }
         }

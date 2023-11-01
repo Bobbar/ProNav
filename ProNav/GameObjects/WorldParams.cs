@@ -39,6 +39,11 @@ namespace ProNav.GameObjects
             }
         }
 
+
+        public static bool ShowAero = false;
+        public static bool ShowMissileCloseup = false;
+        public static bool ShowTracking = false;
+
         private static float _zoomScale = 0.4f;
 
         public static void UpdateViewport(Size viewPortSize)

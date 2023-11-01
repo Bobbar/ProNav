@@ -16,8 +16,9 @@ namespace ProNav
         private SizeF _drawSize;
         private int _dataIdx = 0;
         private float _xPosition = 0;
-        private float _xPadding = 5f;
+        private float _xPadding = 2;
         private float _xMax = 0f;
+        private float _pointSize = 1f;
 
         public Graph(SizeF size, params float[] vals)
         {
@@ -99,7 +100,7 @@ namespace ProNav
                     
                     var pnt = new D2DPoint((i * _xPadding) + pos.X - (_drawSize.Width * 0.5f), vScaled);
 
-                    gfx.FillEllipse(new D2DEllipse(pnt, new D2DSize(5f, 5f)), D2DColor.FromGDIColor(_colors[j % _colors.Length]));
+                    gfx.FillEllipse(new D2DEllipse(pnt, new D2DSize(_pointSize, _pointSize)), D2DColor.FromGDIColor(_colors[j % _colors.Length]));
                     //gfx.DrawEllipse(new D2DEllipse(pnt, new D2DSize(5f, 5f)), D2DColor.FromGDIColor(_colors[j % _colors.Length]));
                 }
             }

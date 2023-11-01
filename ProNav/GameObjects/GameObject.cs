@@ -23,6 +23,7 @@ namespace ProNav.GameObjects
             }
         }
 
+
         protected float _rotation = 0f;
 
         //protected Random _rnd = new Random();
@@ -100,6 +101,16 @@ namespace ProNav.GameObjects
         protected float ClampAngle(float angle) => Helpers.ClampAngle(angle);
         protected double ClampAngleD(double angle) => Helpers.ClampAngleD(angle);
 
+
+
+        protected D2DPoint ApplyTranslation(D2DPoint src, float rotation, D2DPoint translation, float scale = 1f)
+        {
+            var mat = Matrix3x2.CreateScale(scale);
+            mat *= Matrix3x2.CreateRotation(rotation * (float)(Math.PI / 180f), D2DPoint.Zero);
+            mat *= Matrix3x2.CreateTranslation(translation);
+
+            return D2DPoint.Transform(src, mat);
+        }
     }
 
 

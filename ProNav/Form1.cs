@@ -14,36 +14,8 @@ namespace ProNav
         private D2DGraphics _gfx;
         private Task _renderThread;
 
-        private const float DT = 0.1f;
-        private const float RENDER_SCALE = -0.3f;
         private const int PHYSICS_STEPS = 8;
         private const float ROTATE_RATE = 2f;
-
-        private float _zoomScale = 0.2f;
-        private float ZoomScale
-        {
-            get => _zoomScale;
-
-            set
-            {
-                if (value >= 0.1f && value <= 3f)
-                    _zoomScale = value;
-
-                Debug.WriteLine($"Zoom: {_zoomScale}");
-            }
-        }
-
-        private float ViewPortScaleMulti
-        {
-            get
-            {
-                var multi = 1f / _zoomScale;
-                return multi;
-            }
-        }
-
-        private D2DSize _viewPortSize;
-        private D2DRect _viewPortRect;
 
         private ManualResetEventSlim _pauseRenderEvent = new ManualResetEventSlim(true);
         private ManualResetEventSlim _stopRenderEvent = new ManualResetEventSlim(true);
@@ -57,8 +29,9 @@ namespace ProNav
         private bool _fireBurst = false;
         private bool _motionBlur = false;
         private bool _shiftDown = false;
-        private bool _useCollisionGrid = true;
+        private bool _useCollisionGrid = false;
         private bool _renderEveryStep = true;
+        private bool _showHelp = false;
 
         private const int BURST_NUM = 10;
         private const int BURST_FRAMES = 3;
@@ -75,7 +48,8 @@ namespace ProNav
         private CollisionGrid _colGrid;
 
         private Ship _player = new Ship();
-        private GuidedMissile.GuidanceType _guidanceType = GuidedMissile.GuidanceType.Advanced;
+        private GuidanceType _guidanceType = GuidanceType.Advanced;
+        private bool _useControlSurfaces = false;
 
         private D2DColor _blurColor = new D2DColor(0.05f, D2DColor.Black);
         private D2DPoint _infoPosition = new D2DPoint(30, 30);
@@ -97,7 +71,7 @@ namespace ProNav
 
             StartRenderThread();
 
-            _player.Position = new D2DPoint(_viewPortSize.width * 0.5f, _viewPortSize.height * 0.5f);
+            _player.Position = new D2DPoint(World.ViewPortSize.width * 0.5f, World.ViewPortSize.height * 0.5f);
             _player.FireBulletCallback = b => { _bullets.Add(b); _colGrid.Add(b); };
         }
 
@@ -116,10 +90,9 @@ namespace ProNav
             _gfx.Antialias = true;
             _device.Resize();
 
-            _viewPortSize = new D2DSize(this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
-            _viewPortRect = new D2DRect(0, 0, this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
+            World.UpdateViewport(this.Size);
+            _colGrid = new CollisionGrid(new Size((int)(World.ViewPortSize.width), (int)(World.ViewPortSize.height)), _colGridSideLen);
 
-            _colGrid = new CollisionGrid(new Size((int)(_viewPortSize.width), (int)(_viewPortSize.height)), _colGridSideLen);
         }
 
         private void ResizeGfx()
@@ -128,10 +101,8 @@ namespace ProNav
 
             _device?.Resize();
 
-            _viewPortSize = new D2DSize(this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
-            _viewPortRect = new D2DRect(0, 0, this.Width * ViewPortScaleMulti, this.Height * ViewPortScaleMulti);
-
-            _colGrid.Resize(_viewPortSize.width, _viewPortSize.height);
+            World.UpdateViewport(this.Size);
+            _colGrid.Resize(World.ViewPortSize.width, World.ViewPortSize.height);
 
             ResumeRender();
         }
@@ -148,22 +119,22 @@ namespace ProNav
                     _gfx.BeginRender(D2DColor.Black);
 
                 if (_motionBlur)
-                    _gfx.FillRectangle(_viewPortRect, _blurColor);
+                    _gfx.FillRectangle(World.ViewPortRect, _blurColor);
 
                 _gfx.PushTransform();
-                _gfx.ScaleTransform(_zoomScale, _zoomScale);
+                _gfx.ScaleTransform(World.ZoomScale, World.ZoomScale);
 
                 // Render stuff...
 
                 if (!_isPaused || _oneStep)
                 {
-                    var partialDT = DT / PHYSICS_STEPS;
+                    var partialDT = World.DT / PHYSICS_STEPS;
 
                     for (int i = 0; i < PHYSICS_STEPS; i++)
                     {
-                        _missiles.ForEach(o => o.Update(partialDT, _viewPortSize, RENDER_SCALE));
-                        _targets.ForEach(o => o.Update(partialDT, _viewPortSize, RENDER_SCALE));
-                        _bullets.ForEach(o => o.Update(partialDT, _viewPortSize, RENDER_SCALE));
+                        _missiles.ForEach(o => o.Update(partialDT, World.ViewPortSize, World.RenderScale));
+                        _targets.ForEach(o => o.Update(partialDT, World.ViewPortSize, World.RenderScale));
+                        _bullets.ForEach(o => o.Update(partialDT, World.ViewPortSize, World.RenderScale));
 
                         if (_renderEveryStep)
                         {
@@ -171,6 +142,8 @@ namespace ProNav
                             _bullets.ForEach(o => o.Render(_gfx));
                             _missiles.ForEach(o => o.Render(_gfx));
                         }
+
+                        DrawMissileOverlays(_gfx);
 
                         if (_useCollisionGrid)
                             DoCollisionsGrid();
@@ -188,7 +161,7 @@ namespace ProNav
                     _missiles.ForEach(o => o.Render(_gfx));
                 }
 
-                _player.Update(DT, _viewPortSize, RENDER_SCALE);
+                _player.Update(World.DT, World.ViewPortSize, World.RenderScale);
                 _player.Render(_gfx);
 
                 _gfx.PopTransform();
@@ -266,7 +239,7 @@ namespace ProNav
 
                 foreach (var obj in nearest)
                 {
-                    if (targ.Contains(obj.Position) || targ.Contains(obj.Position + (obj.Velocity * (DT / 8f))))
+                    if (targ.Contains(obj.Position) || targ.Contains(obj.Position + (obj.Velocity * (World.DT / 8f))))
                     {
                         targ.IsExpired = true;
                         obj.IsExpired = true;
@@ -309,7 +282,7 @@ namespace ProNav
                 {
                     var missile = _missiles[m] as Missile;
 
-                    if (targ.Contains(missile.Position) || targ.Contains(missile.Position + (missile.Velocity * (DT / 8f))))
+                    if (targ.Contains(missile.Position) || targ.Contains(missile.Position + (missile.Velocity * (World.DT / 8f))))
                     {
                         targ.IsExpired = true;
                         missile.IsExpired = true;
@@ -357,7 +330,7 @@ namespace ProNav
 
         private void SpawnTargets(int num)
         {
-            var vpSzHalf = new D2DSize(_viewPortSize.width * 0.5f, _viewPortSize.height * 0.5f);
+            var vpSzHalf = new D2DSize(World.ViewPortSize.width * 0.5f, World.ViewPortSize.height * 0.5f);
 
             for (int i = 0; i < num; i++)
             {
@@ -371,9 +344,10 @@ namespace ProNav
             //var targ = new ErraticMovingTarget(pos);
             //var targ = new RotatingMovingTarget(pos);
             //var targ = new LinearMovingTarget(pos);
+            //var targ = new StaticTarget(pos);
 
             Target targ = null;
-            var rndT = _rnd.Next(3);
+            var rndT = _rnd.Next(4);
             switch (rndT)
             {
                 case 0:
@@ -387,6 +361,10 @@ namespace ProNav
                 case 2:
                     targ = new LinearMovingTarget(pos);
                     break;
+
+                case 3:
+                    targ = new StaticTarget(pos);
+                    break;
             }
 
             _targets.Add(targ);
@@ -397,7 +375,7 @@ namespace ProNav
             for (int i = 0; i < _targets.Count; i++)
             {
                 var targ = _targets[i];
-                var missile = new GuidedMissile(_player, targ as Target, _guidanceType);
+                var missile = new GuidedMissile(_player, targ as Target, _guidanceType, _useControlSurfaces);
 
                 _missiles.Add(missile);
                 _colGrid.Add(missile);
@@ -500,12 +478,12 @@ namespace ProNav
 
                 while (_missiles.Count > 0 && _targets.Count > 0)
                 {
-                    var partialDT = DT / PHYSICS_STEPS;
+                    var partialDT = World.DT / PHYSICS_STEPS;
 
                     for (int s = 0; s < PHYSICS_STEPS; s++)
                     {
-                        _missiles.ForEach(o => o.Update(partialDT, _viewPortSize, RENDER_SCALE));
-                        _targets.ForEach(o => o.Update(partialDT, _viewPortSize, RENDER_SCALE));
+                        _missiles.ForEach(o => o.Update(partialDT, World.ViewPortSize, World.RenderScale));
+                        _targets.ForEach(o => o.Update(partialDT, World.ViewPortSize, World.RenderScale));
 
 
                         //_missiles.ForEach(o => o.Render(_gfx));
@@ -540,15 +518,64 @@ namespace ProNav
             //DrawGrid(gfx);
         }
 
+        private void DrawMissileOverlays(D2DGraphics gfx)
+        {
+            foreach (var missile in _missiles)
+            {
+                gfx.PushTransform();
+
+                var multi = World.ViewPortScaleMulti;
+                var sz = World.ViewPortSize;
+                var thisSz = this.Size;
+                var scale = 10f;
+                var zAmt = World.ZoomScale;
+                var pos = new D2DPoint(World.ViewPortSize.width * 0.5f * zAmt, World.ViewPortSize.height * 0.15f * zAmt);
+                var offset = new D2DPoint((-(missile.Position.X * zAmt)) * scale, (-(missile.Position.Y * zAmt)) * scale);
+
+                gfx.ScaleTransform(scale, scale);
+                gfx.RotateTransform(-missile.Rotation, missile.Position);
+                gfx.TranslateTransform(offset.X, offset.Y);
+                gfx.TranslateTransform(pos.X, pos.Y);
+
+                missile.Render(gfx);
+
+                gfx.PopTransform();
+            }
+        }
+
         private void DrawInfo(D2DGraphics gfx, D2DPoint pos)
         {
             string infoText = string.Empty;
             infoText += $"Guidance Type: {_guidanceType.ToString()}\n";
 
+            infoText += $"Missle Type: {(_useControlSurfaces ? "Control Surfaces" : "Direct Rotation")}\n";
+
             var numObj = _missiles.Count + _targets.Count + _bullets.Count;
             infoText += $"Num Objects: {numObj}\n";
 
             infoText += $"FPS: {Math.Round(_renderFPS, 0)}\n";
+
+            infoText += "\n";
+
+            if (_showHelp)
+                infoText += $@"P: Pause
+B: Motion Blur
+T: Trails
+N: Pause/One Step
+R: Spawn Target
+A: Spawn target at click pos
+M: Move ship to click pos
+C: Clear all
++/-: Zoom
+S: Missile Type
+Shift + Mouse-Wheel: Guidance Type
+Left-Click: Thrust ship
+Right-Click: Fire auto cannon
+Middle-Click: Fire missle
+Mouse-Wheel: Rotate ship";
+
+            else
+                infoText += "H: Show help";
 
             gfx.DrawText(infoText, D2DColor.GreenYellow, "Consolas", 12f, pos.X, pos.Y);
         }
@@ -657,12 +684,12 @@ namespace ProNav
                     break;
 
                 case '=' or '+':
-                    ZoomScale += 0.05f;
+                    World.ZoomScale += 0.05f;
                     ResizeGfx();
                     break;
 
                 case '-':
-                    ZoomScale -= 0.05f;
+                    World.ZoomScale -= 0.05f;
                     ResizeGfx();
                     break;
 
@@ -671,6 +698,9 @@ namespace ProNav
                     //Test();
                     //Helpers.Rnd = new Random(1234);
                     //Benchmark();
+                    break;
+                case 's':
+                    _useControlSurfaces = !_useControlSurfaces;
                     break;
             }
         }
@@ -690,11 +720,11 @@ namespace ProNav
                     if (_spawnTargetKey)
                     {
                         _spawnTargetKey = false;
-                        SpawnTarget(new D2DPoint(e.X * ViewPortScaleMulti, e.Y * ViewPortScaleMulti));
+                        SpawnTarget(new D2DPoint(e.X * World.ViewPortScaleMulti, e.Y * World.ViewPortScaleMulti));
                     }
                     else if (_moveShip)
                     {
-                        _player.Position = new D2DPoint(e.X * ViewPortScaleMulti, e.Y * ViewPortScaleMulti);
+                        _player.Position = new D2DPoint(e.X * World.ViewPortScaleMulti, e.Y * World.ViewPortScaleMulti);
                         _moveShip = false;
                     }
                     else
@@ -732,7 +762,7 @@ namespace ProNav
             }
             else
             {
-                var len = Enum.GetNames(typeof(GuidedMissile.GuidanceType)).Length;
+                var len = Enum.GetNames(typeof(GuidanceType)).Length;
                 var cur = (int)_guidanceType;
                 int next = cur;
 
@@ -741,7 +771,7 @@ namespace ProNav
                 else
                     next = (next - 1) < 0 ? len - 1 : next - 1;
 
-                _guidanceType = (GuidedMissile.GuidanceType)next;
+                _guidanceType = (GuidanceType)next;
             }
 
         }
@@ -764,11 +794,16 @@ namespace ProNav
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
             _shiftDown = e.Shift;
+
+            _showHelp = e.KeyCode == Keys.H;
         }
 
         private void Form1_KeyUp(object sender, KeyEventArgs e)
         {
             _shiftDown = e.Shift;
+
+            if (_showHelp && e.KeyCode == Keys.H)
+                _showHelp = false;
         }
     }
 }

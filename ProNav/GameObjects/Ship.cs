@@ -36,7 +36,7 @@ namespace ProNav.GameObjects
         };
 
         private RenderPoly FlamePoly;
-
+        private float _renderOffset = 1.5f;//4f;
         public Action<Bullet> FireBulletCallback { get; set; }
 
         public Ship() : base(_shipPoly)
@@ -52,7 +52,7 @@ namespace ProNav.GameObjects
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
         {
-            base.Update(dt, viewport, renderScale + 4f);
+            base.Update(dt, viewport, renderScale + _renderOffset);
 
             if (FlameOn)
             {
@@ -62,9 +62,9 @@ namespace ProNav.GameObjects
                 this.Velocity += dt * vec;
             }
 
-            this.Velocity *= 0.98f;
+            this.Velocity *= 0.9f;
 
-            FlamePoly.Update(this.Position, Rotation, renderScale + 4f);
+            FlamePoly.Update(this.Position, Rotation, renderScale + _renderOffset + 1f);
 
             var velo = this.Velocity.Length();
             _flamePoly[2].X = -_rnd.Next(7 + (int)(velo * 0.2f), 9 + (int)(velo * 0.2f));
@@ -76,11 +76,7 @@ namespace ProNav.GameObjects
         {
             if (FlameOn)
             {
-                //ApplyTranslation(_flamePoly, _flameRenderPoly, 3f);
                 gfx.DrawPolygon(this.FlamePoly.Poly, D2DColor.Transparent, 1f, D2DDashStyle.Solid, _flameFillColor);
-
-                //gfx.DrawPolygon(flamePoly, D2DColor.Yellow, 1f, D2DDashStyle.Solid, _flameFillColor);
-                //gfx.DrawPolygon(flamePoly, D2DColor.Yellow, 1f, D2DDashStyle.Solid, new D2DColor(0.5f, );
             }
 
             gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, _fillColor);

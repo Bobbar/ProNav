@@ -80,7 +80,7 @@ namespace ProNav.GameObjects
         {
             //base.Render(gfx);
 
-            gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(10, 10)), D2DColor.Yellow);
+            gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(5, 5)), D2DColor.Yellow);
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)

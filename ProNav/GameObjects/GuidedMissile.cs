@@ -8,17 +8,29 @@ namespace ProNav.GameObjects
         public Target Target { get; set; }
 
 
+        //private static readonly D2DPoint[] _missilePoly = new D2DPoint[]
+        //{
+        //    new D2DPoint(9, 0),
+        //    new D2DPoint(6, 2),
+        //    new D2DPoint(-6, 2),
+        //    new D2DPoint(-8, 4),
+        //    new D2DPoint(-8, -4),
+        //    new D2DPoint(-6, -2),
+        //    new D2DPoint(6, -2)
+
+        //};
+
         private static readonly D2DPoint[] _missilePoly = new D2DPoint[]
-        {
-            new D2DPoint(9, 0),
-            new D2DPoint(6, 2),
+       {
+            new D2DPoint(14, 0),
+            new D2DPoint(11, 2),
             new D2DPoint(-6, 2),
             new D2DPoint(-8, 4),
             new D2DPoint(-8, -4),
             new D2DPoint(-6, -2),
-            new D2DPoint(6, -2)
+            new D2DPoint(11, -2)
 
-        };
+       };
 
         private static readonly D2DPoint[] _flamePoly = new D2DPoint[]
         {
@@ -66,30 +78,23 @@ namespace ProNav.GameObjects
 
         private const float LIFESPAN = 50f;
         private float _age = 0;
-        private const float THRUST = 6000f;
-        private const float MASS = 25f;//35.3f;
+        private const float THRUST = 3000f;
+        private const float MASS = 25f;
         private float FUEL = 80f;
         private float _thrustBoost = 0;
         private float _maxGs = float.MinValue;
 
-        private Graph _graph;
-
-
         private D2DColor _flameFillColor = new D2DColor(0.6f, D2DColor.Yellow);
-
-        private float _renderOffset = 4f;//2.5f;
+        private float _renderOffset = 1.5f;
 
         public GuidanceType Guidance { get; set; } = GuidanceType.Advanced;
+        
+        private bool _useControlSurfaces = false;
+        private Wing _tailWing;
+        private Wing _noseWing;
+        private Wing _rocketBody;
 
-        public enum GuidanceType
-        {
-            Advanced,
-            BasicLOS,
-            SimplePN,
-            QuadraticPN
-        }
-
-        public GuidedMissile(Ship player, Target target, GuidanceType guidance = GuidanceType.Advanced) : base(player.Position, player.Velocity, player.Rotation)
+        public GuidedMissile(Ship player, Target target, GuidanceType guidance = GuidanceType.Advanced, bool useControlSurfaces = false) : base(player.Position, player.Velocity, player.Rotation)
         {
             this.Guidance = guidance;
             this.Target = target;
@@ -99,15 +104,26 @@ namespace ProNav.GameObjects
             _prevPos = this.Position;
             _prevTargPos = target.Position;
 
+            _useControlSurfaces = useControlSurfaces;
+
+            if (_useControlSurfaces)
+            {
+                //_tailWing = new Wing(3f, 0.1f, player.Rotation, new D2DPoint(-6f, 0));
+                //_noseWing = new Wing(3f, 0.05f, player.Rotation, new D2DPoint(7f, 0));
+                //_rocketBody = new Wing(0f, 0.05f, player.Rotation, D2DPoint.Zero);
+
+                _tailWing = new Wing(3f, 0.2f, player.Rotation, new D2DPoint(-6f, 0));
+                _noseWing = new Wing(3f, 0.1f, player.Rotation, new D2DPoint(7f, 0));
+                _rocketBody = new Wing(0f, 0.1f, player.Rotation, D2DPoint.Zero);
+            }
+            else
+            {
+                _rocketBody = new Wing(0f, 0.4f, player.Rotation, D2DPoint.Zero);
+            }
+
             // Set initial velo.
             // Aero and guidance logic don't work if our velo is zero.
             this.Velocity = GetThrust(1f);
-
-            //_graph = new Graph(new SizeF(3000, 500), 0f, 0f);
-
-            //_graph = new Graph(new SizeF(7000, 700), new Color[] {Color.Red, Color.LightBlue}, 0f, 0f);
-            _graph = new Graph(new SizeF(7000, 1100), new Color[] { Color.Red, Color.LightBlue, Color.Blue, Color.Green, Color.Yellow }, 2);
-
         }
 
         private D2DPoint GetThrust(float dt)
@@ -130,6 +146,27 @@ namespace ProNav.GameObjects
         {
             base.Update(dt, viewport, renderScale + _renderOffset);
 
+            if (_useControlSurfaces)
+            {
+                _tailWing.Rotation = this.Rotation + _tailWing.Deflection;
+                _noseWing.Rotation = this.Rotation + _noseWing.Deflection;
+                _rocketBody.Rotation = this.Rotation;
+
+                _tailWing.Position = ApplyTranslation(_tailWing.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
+                _noseWing.Position = ApplyTranslation(_noseWing.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
+                _rocketBody.Position = ApplyTranslation(_rocketBody.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
+
+                _tailWing.Update(dt, viewport, renderScale + _renderOffset);
+                _noseWing.Update(dt, viewport, renderScale + _renderOffset);
+                _rocketBody.Update(dt, viewport, renderScale + _renderOffset);
+            }
+            else
+            {
+                _rocketBody.Rotation = this.Rotation;
+                _rocketBody.Position = ApplyTranslation(_rocketBody.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
+                _rocketBody.Update(dt, viewport, renderScale + _renderOffset);
+            }
+
             _age += dt;
 
             if (_age > LIFESPAN)
@@ -140,7 +177,28 @@ namespace ProNav.GameObjects
             accel += GetThrust(dt);
 
             // Apply aerodynamics.
-            var liftDrag = LiftDragForce();
+            var liftDrag = D2DPoint.Zero;
+
+            if (_useControlSurfaces)
+            {
+                var tailForce = LiftDragForce(_tailWing);
+                var noseForce = LiftDragForce(_noseWing);
+                var bodyForce = LiftDragForce(_rocketBody);
+                liftDrag += tailForce + noseForce + bodyForce;
+
+                // Compute torque and rotation result.
+                var tailTorque = GetTorque(_tailWing, tailForce);
+                var noseTorque = GetTorque(_noseWing, noseForce);
+                var bodyTorque = GetTorque(_rocketBody, bodyForce);
+                var torqueRot = ((tailTorque + noseTorque + bodyTorque)) * dt;
+                this.Rotation += torqueRot / TotalMass;
+            }
+            else
+            {
+                var bodyForce = LiftDragForce(_rocketBody);
+                liftDrag += bodyForce;
+            }
+
             accel += dt * (liftDrag / TotalMass);
 
             // Apply guidance.
@@ -166,7 +224,25 @@ namespace ProNav.GameObjects
 
             }
 
-            this.Rotation = guideRotation;
+
+            if (_useControlSurfaces)
+            {
+                var nextDeflect = guideRotation;
+
+                // Control surfaces require the direct angle instead of a rotation offset by the velo angle as returned by guidance.
+                // Subtract the velo angle to make it work correctly.
+                var veloAngle = this.Velocity.Angle();
+                nextDeflect -= veloAngle; 
+
+                _tailWing.Deflection = -nextDeflect;
+                _noseWing.Deflection = 0.5f + nextDeflect;
+            }
+            else
+            {
+                this.Rotation = guideRotation;
+            }
+
+
             this.Velocity += accel;
 
             var dist = D2DPoint.Distance(this.Position, _prevPos);
@@ -208,32 +284,44 @@ namespace ProNav.GameObjects
 
         public override void Render(D2DGraphics gfx)
         {
-            gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
-
-
             if (this.FUEL > 0f)
                 gfx.DrawPolygon(this.FlamePoly.Poly, _flameFillColor, 1f, D2DDashStyle.Solid, _flameFillColor);
 
-            gfx.DrawLine(this.Position, this.Position + (_liftVector * 0.05f), D2DColor.SkyBlue);
-            gfx.DrawLine(this.Position, this.Position + (_dragVector * 0.08f), D2DColor.Red);
+            gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
+           
+            if (_useControlSurfaces)
+            {
+                _tailWing.Render(gfx);
+                _noseWing.Render(gfx);
+            }
+
+            _rocketBody.Render(gfx);
+
+            //gfx.DrawLine(this.Position, this.Position + (_liftVector * 0.05f), D2DColor.SkyBlue);
+            //gfx.DrawLine(this.Position, this.Position + (_dragVector * 0.08f), D2DColor.Red);
 
             //gfx.FillEllipse(new D2DEllipse(_finalAimPoint, new D2DSize(8f, 8f)), D2DColor.LawnGreen);
             //gfx.FillEllipse(new D2DEllipse(_stableAimPoint, new D2DSize(6f, 6f)), D2DColor.Blue);
             //gfx.FillEllipse(new D2DEllipse(_impactPnt, new D2DSize(4f, 4f)), D2DColor.Red);
+
         }
 
-        private D2DPoint LiftDragForce()
+
+        private D2DPoint LiftDragForce(Wing wing)
         {
-            var veloMag = this.Velocity.Length();
+            if (wing.Velocity.Length() == 0f)
+                return D2DPoint.Zero;
+
+            var veloMag = (this.Velocity + wing.Velocity).Length();
             var veloMagSq = (float)Math.Pow(veloMag, 2f);
 
             // Compute velo tangent. For lift/drag and rotation calcs.
-            var veloNorm = D2DPoint.Normalize(this.Velocity);
+            var veloNorm = D2DPoint.Normalize(this.Velocity + wing.Velocity);
             var veloNormTan = new D2DPoint(veloNorm.Y, -veloNorm.Cross(new D2DPoint(0, 1))); // Up
 
             // Compute angle of attack.
-            var aoaRads = AngleToVector(this.Rotation).Cross(veloNorm);
-            var aoa = aoaRads * (180f / (float)Math.PI);
+            var aoaRads = AngleToVector(wing.Rotation).Cross(veloNorm);
+            var aoa = Helpers.RadsToDegrees(aoaRads);
 
             // Compute lift force as velocity tangent with angle-of-attack effecting magnitude and direction. Velocity magnitude is factored as well.
             // Greater AoA and greater velocity = more lift force.
@@ -241,9 +329,9 @@ namespace ProNav.GameObjects
             // Wing & air parameters.
             const float AOA_FACT = 0.2f; // How much AoA effects drag.
             const float VELO_FACT = 0.2f; // How much velocity effects drag.
-            const float WING_AREA = 0.4f; //0.1f; // Area of the wing. Effects lift & drag forces.
-            const float MAX_LIFT = 31000f; // Max lift force allowed.
-            const float MAX_AOA = 40f; // Max AoA allowed before lift force reduces. (Stall)
+            float WING_AREA = wing.Area; // Area of the wing. Effects lift & drag forces.
+            const float MAX_LIFT = 31000f;//101000f; // Max lift force allowed.
+            const float MAX_AOA = 60f; // Max AoA allowed before lift force reduces. (Stall)
             const float AIR_DENSITY = 1.225f;
             const float PARASITIC_DRAG = 0.5f;
 
@@ -262,7 +350,7 @@ namespace ProNav.GameObjects
             //if (c > 0f)
             //	coeffLift = (4f * (aoa * aoaFact)) / (float)Math.Sqrt(c);
 
-            var liftForce = AIR_DENSITY * 0.5f * (float)Math.Pow(veloMag, 2f) * WING_AREA * coeffLift;
+            var liftForce = AIR_DENSITY * 0.5f * veloMagSq * WING_AREA * coeffLift;
             liftForce = Math.Clamp(liftForce, -MAX_LIFT, MAX_LIFT);
 
             var liftVec = veloNormTan * liftForce;
@@ -270,14 +358,25 @@ namespace ProNav.GameObjects
             _liftVector = liftVec;
             _dragVector = dragVec;
 
+            wing.LiftVector = liftVec;
+            wing.DragVector = dragVec;
+            wing.AoA = aoa;
+
             return (liftVec + dragVec);
         }
 
-
+        private float GetTorque(Wing wing, D2DPoint force)
+        {
+            // How is it so simple?
+            var r = wing.Position - this.Position;
+            var torque = Helpers.Cross(r, force);
+            return torque;
+        }
+      
         private float GuideToBasicLOS(float dt)
         {
             const float pValue = 0.5f;
-            const float ARM_DIST = 1200f;
+            const float ARM_DIST = 600f;
             const float MIN_CLOSE_RATE = 1f; // Min closing rate required to aim at predicted impact point.
             const float TARG_DIST = 1000f;
 
@@ -315,7 +414,7 @@ namespace ProNav.GameObjects
         private float GuideToSimplePN(float dt)
         {
             const float pValue = 3f;
-            const float ARM_DIST = 1200f;
+            const float ARM_DIST = 600f;
             const float MIN_CLOSE_RATE = 1f; // Min closing rate required to aim at predicted impact point.
 
             var target = this.Target.CenterOfPolygon();
@@ -346,7 +445,7 @@ namespace ProNav.GameObjects
 
         private float GuideToQuadraticPN(float dt)
         {
-            const float ARM_DIST = 1200f;
+            const float ARM_DIST = 600f;
             const float MIN_CLOSE_RATE = 10f; // Min closing rate required to aim at predicted impact point.
 
             D2DPoint direction;

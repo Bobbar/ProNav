@@ -11,7 +11,10 @@ namespace ProNav.GameObjects
     public abstract class Target : GameObjectPoly
     {
         public int NumPolyPoints { get; set; } = 8;
-        public int PolyRadius { get; set; } = 60;
+        public int PolyRadius { get; set; } = 80;
+
+        protected readonly float MIN_MAX_VELO = 150f;
+        protected readonly float MIN_MAX_ROT = 40f;
 
         public Target() { }
 
@@ -24,10 +27,23 @@ namespace ProNav.GameObjects
         }
     }
 
+    public class StaticTarget : Target
+    {
+        public StaticTarget(D2DPoint pos) : base(pos) 
+        {
+            this.Polygon = new RenderPoly(GameObjectPoly.RandomPoly(this.NumPolyPoints, this.PolyRadius));
+        }
+
+        public override void Render(D2DGraphics gfx)
+        {
+            gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.DeepPink);
+            //gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(3, 3)), D2DColor.LightGray);
+
+        }
+    }
+
     public class LinearMovingTarget : Target
     {
-        private const float MIN_MAX_VELO = 300f;
-
         public LinearMovingTarget() { }
 
         public LinearMovingTarget(D2DPoint pos) : base(pos)
@@ -53,9 +69,6 @@ namespace ProNav.GameObjects
 
     public class RotatingMovingTarget : Target
     {
-        private const float MIN_MAX_VELO = 220f;
-        private const float MIN_MAX_ROT = 90f;
-
         public RotatingMovingTarget() { }
         public RotatingMovingTarget(D2DPoint pos) : base(pos)
         {
@@ -85,8 +98,6 @@ namespace ProNav.GameObjects
 
     public class ErraticMovingTarget : Target
     {
-        private const float MIN_MAX_VELO = 320f;
-        private const float MIN_MAX_ROT = 50f;
         private int _nextRotMod = 100;
         private int _nextVeloMod = 100;
         private float _targRot = 0;
@@ -135,8 +146,6 @@ namespace ProNav.GameObjects
         public override void Render(D2DGraphics gfx)
         {
             gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.OrangeRed);
-            //gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(3, 3)), D2DColor.LightGray);
-
         }
 
     }

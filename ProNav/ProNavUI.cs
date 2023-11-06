@@ -8,7 +8,7 @@ using unvell.D2DLib;
 
 namespace ProNav
 {
-    public partial class Form1 : Form
+    public partial class ProNavUI : Form
     {
         private D2DDevice _device;
         private D2DGraphics _gfx;
@@ -58,7 +58,7 @@ namespace ProNav
 
         private Random _rnd => Helpers.Rnd;
 
-        public Form1()
+        public ProNavUI()
         {
             InitializeComponent();
 
@@ -571,14 +571,39 @@ namespace ProNav
 
         private void DrawOverlays(D2DGraphics gfx)
         {
-            DrawInfo(_gfx, _infoPosition);
+            DrawInfo(gfx, _infoPosition);
 
             //DrawGrid(gfx);
+
+            //DrawRadial(gfx, new D2DPoint(300, 300));
+        }
+
+        private void DrawRadial(D2DGraphics gfx, D2DPoint pos)
+        {
+            const float radius = 300f;
+            const float step = 10f;
+
+            float angle = 0f;
+
+            while (angle < 360f)
+            {
+                var vec = Helpers.AngleToVectorDegrees(angle);
+                vec = pos + (vec * radius);
+
+                gfx.DrawLine(pos, vec, D2DColor.Gray);
+
+                gfx.DrawText(angle.ToString(), D2DColor.White, "Consolas", 12f, vec.X, vec.Y);
+
+                angle += step;
+            }
+
+            gfx.DrawEllipse(new D2DEllipse(pos, new D2DSize(radius, radius)), D2DColor.White);
         }
 
         private void DrawMissileOverlays(D2DGraphics gfx)
         {
-            var scale = 10f;
+            var scale = 7f * World.ViewPortScaleMulti;
+
             var zAmt = World.ZoomScale;
             var pos = new D2DPoint(World.ViewPortSize.width * 0.5f * zAmt, World.ViewPortSize.height * 0.15f * zAmt);
 
@@ -592,7 +617,7 @@ namespace ProNav
 
                 gfx.ScaleTransform(scale, scale);
                 gfx.RotateTransform(-missile.Rotation, missile.Position);
-                gfx.TranslateTransform(offset.X, offset.Y);
+                gfx.TranslateTransform(offset.X, offset.Y); 
                 gfx.TranslateTransform(pos.X, pos.Y);
 
                 missile.Render(gfx);
@@ -613,6 +638,7 @@ namespace ProNav
 
             infoText += $"FPS: {Math.Round(_renderFPS, 0)}\n";
             infoText += $"Zoom: {Math.Round(World.ZoomScale, 2)}\n";
+            infoText += $"DT: {Math.Round(World.DT, 3)}\n";
 
             if (_showHelp)
             {
@@ -716,13 +742,28 @@ Mouse-Wheel: Rotate ship";
                     break;
 
                 case '=' or '+':
-                    World.ZoomScale += 0.05f;
-                    ResizeGfx();
+                    if (_shiftDown)
+                    {
+                        World.DT += 0.01f;
+                    }
+                    else
+                    {
+                        World.ZoomScale += 0.05f;
+                        ResizeGfx();
+                    }
                     break;
 
-                case '-':
-                    World.ZoomScale -= 0.05f;
-                    ResizeGfx();
+                case '-' or '_':
+
+                    if (_shiftDown)
+                    {
+                        World.DT -= 0.01f;
+                    }
+                    else
+                    {
+                        World.ZoomScale -= 0.05f;
+                        ResizeGfx();
+                    }
                     break;
             }
         }

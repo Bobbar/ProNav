@@ -1,6 +1,6 @@
 ﻿namespace ProNav
 {
-    partial class Form1
+    partial class ProNavUI
     {
         /// <summary>
         ///  Required designer variable.

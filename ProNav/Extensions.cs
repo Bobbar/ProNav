@@ -35,26 +35,22 @@ namespace ProNav
             return D2DPoint.Normalize(point);
         }
 
-        public static float Angle(this D2DPoint vector)
+        public static float Angle(this D2DPoint vector, bool clamp = false)
         {
-            var angle = Math.Atan2(vector.Y, vector.X) * (180f / (float)Math.PI);
+            var angle = (float)Math.Atan2(vector.Y, vector.X) * (180f / (float)Math.PI);
 
-            angle = angle % 360f;
+            if (clamp)
+                angle = Helpers.ClampAngle(angle);
 
-            if (angle < 0f)
-                angle += 360f;
-
-            return (float)angle;
+            return angle;
         }
 
-        public static double AngleD(this D2DPoint vector)
+        public static double AngleD(this D2DPoint vector, bool clamp = false)
         {
             var angle = Math.Atan2(vector.Y, vector.X) * (180d / Math.PI);
 
-            angle = angle % 360d;
-
-            if (angle < 0d)
-                angle += 360d;
+           if (clamp)
+                angle = Helpers.ClampAngleD(angle);
 
             return angle;
         }

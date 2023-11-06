@@ -13,7 +13,7 @@ namespace ProNav.GameObjects
         public int NumPolyPoints { get; set; } = 8;
         public int PolyRadius { get; set; } = 80;
 
-        protected readonly float MIN_MAX_VELO = 150f;
+        protected readonly float MIN_MAX_VELO = 190f;//150f;
         protected readonly float MIN_MAX_ROT = 40f;
 
         public Target() { }

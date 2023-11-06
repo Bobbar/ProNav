@@ -10,7 +10,7 @@ namespace ProNav.GameObjects
 {
     public class Wing : GameObject
     {
-        private readonly float MAX_DEFLECTION = 60f;
+        private readonly float MAX_DEFLECTION = 40f;
         private readonly float MAX_VELO = 300f;
        
         public float RenderLength { get; set; }
@@ -66,8 +66,8 @@ namespace ProNav.GameObjects
         {
             if (World.ShowAero)
             {
-                gfx.DrawLine(this.Position, this.Position + (LiftVector * 0.05f), D2DColor.SkyBlue);
-                gfx.DrawLine(this.Position, this.Position + (DragVector * 0.08f), D2DColor.Red);
+                gfx.DrawLine(this.Position, this.Position + (LiftVector * 0.05f), D2DColor.SkyBlue, 0.5f);
+                gfx.DrawLine(this.Position, this.Position + (DragVector * 0.08f), D2DColor.Red, 0.5f);
             }
           
             var startB = this.Position - Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;

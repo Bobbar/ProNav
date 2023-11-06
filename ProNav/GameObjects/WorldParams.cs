@@ -10,7 +10,17 @@ namespace ProNav.GameObjects
 {
     public static class World
     {
-        public static float DT { get; set; } = 0.09f;//0.1f;
+        public static float DT 
+        { 
+            get { return _dt; }
+            set
+            {
+                if (value > 0f && value < 1f)
+                    _dt = value;
+            } 
+        } 
+
+
         public static float RenderScale { get; set; } = 0.1f;
 
         public static float ZoomScale
@@ -45,6 +55,7 @@ namespace ProNav.GameObjects
         public static bool ShowTracking = false;
 
         private static float _zoomScale = 0.4f;
+        private static float _dt = 0.06f;
 
         public static void UpdateViewport(Size viewPortSize)
         {

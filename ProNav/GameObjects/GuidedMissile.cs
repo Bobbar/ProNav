@@ -130,29 +130,6 @@ namespace ProNav.GameObjects
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
         {
-            base.Update(dt, viewport, renderScale + _renderOffset);
-
-            if (_useControlSurfaces)
-            {
-                _tailWing.Rotation = this.Rotation + _tailWing.Deflection;
-                _noseWing.Rotation = this.Rotation + _noseWing.Deflection;
-                _rocketBody.Rotation = this.Rotation;
-
-                _tailWing.Position = ApplyTranslation(_tailWing.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
-                _noseWing.Position = ApplyTranslation(_noseWing.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
-                _rocketBody.Position = ApplyTranslation(_rocketBody.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
-
-                _tailWing.Update(dt, viewport, renderScale + _renderOffset);
-                _noseWing.Update(dt, viewport, renderScale + _renderOffset);
-                _rocketBody.Update(dt, viewport, renderScale + _renderOffset);
-            }
-            else
-            {
-                _rocketBody.Rotation = this.Rotation;
-                _rocketBody.Position = ApplyTranslation(_rocketBody.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
-                _rocketBody.Update(dt, viewport, renderScale + _renderOffset);
-            }
-
             _age += dt;
 
             if (_age > LIFESPAN)
@@ -212,6 +189,7 @@ namespace ProNav.GameObjects
 
             if (_useControlSurfaces)
             {
+                const float NOSE_AUTH = 0.5f;
                 var nextDeflect = guideRotation;
 
                 // Control surfaces require the direct angle instead of a rotation offset by the velo angle as returned by guidance.
@@ -220,7 +198,7 @@ namespace ProNav.GameObjects
                 nextDeflect -= veloAngle;
 
                 _tailWing.Deflection = -nextDeflect;
-                _noseWing.Deflection = 0.5f + nextDeflect;
+                _noseWing.Deflection = NOSE_AUTH * nextDeflect;
             }
             else
             {
@@ -246,6 +224,30 @@ namespace ProNav.GameObjects
             // Make the flame do flamey things...(Wiggle and color)
             FlamePoly.SourcePoly[1].X = -_rnd.Next(7 + (int)(this.Velocity.Length() * 0.1f), 9 + (int)(this.Velocity.Length() * 0.1f));
             _flameFillColor.g = _rnd.NextFloat(0.6f, 0.86f);
+
+
+            base.Update(dt, viewport, renderScale + _renderOffset);
+
+            if (_useControlSurfaces)
+            {
+                _tailWing.Rotation = this.Rotation + _tailWing.Deflection;
+                _noseWing.Rotation = this.Rotation + _noseWing.Deflection;
+                _rocketBody.Rotation = this.Rotation;
+
+                _tailWing.Position = ApplyTranslation(_tailWing.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
+                _noseWing.Position = ApplyTranslation(_noseWing.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
+                _rocketBody.Position = ApplyTranslation(_rocketBody.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
+
+                _tailWing.Update(dt, viewport, renderScale + _renderOffset);
+                _noseWing.Update(dt, viewport, renderScale + _renderOffset);
+                _rocketBody.Update(dt, viewport, renderScale + _renderOffset);
+            }
+            else
+            {
+                _rocketBody.Rotation = this.Rotation;
+                _rocketBody.Position = ApplyTranslation(_rocketBody.ReferencePosition, this.Rotation, this.Position, renderScale + _renderOffset);
+                _rocketBody.Update(dt, viewport, renderScale + _renderOffset);
+            }
 
             FlamePoly.Update(this.Position, this.Rotation, renderScale + _renderOffset);
         }
@@ -287,6 +289,9 @@ namespace ProNav.GameObjects
                 gfx.FillEllipse(new D2DEllipse(_finalAimPoint, new D2DSize(5f, 5f)), D2DColor.LawnGreen);
                 gfx.FillEllipse(new D2DEllipse(_stableAimPoint, new D2DSize(4f, 4f)), D2DColor.Blue);
                 gfx.FillEllipse(new D2DEllipse(_impactPnt, new D2DSize(3f, 3f)), D2DColor.Red);
+
+                gfx.FillEllipse(new D2DEllipse(this.Target.Position, new D2DSize(3f, 3f)), D2DColor.Yellow);
+
             }
         }
 
@@ -387,7 +392,7 @@ namespace ProNav.GameObjects
             //var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, distFact);
 
             var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
-            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
+            var finalRot = Helpers.Lerp(veloAngle, targetRot, armFactor);
 
             _impactPnt = (target + Target.Velocity * navigationTime);
 
@@ -422,7 +427,7 @@ namespace ProNav.GameObjects
             var targetRot = leadRotation;
 
             var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
-            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
+            var finalRot = Helpers.Lerp(veloAngle, targetRot, armFactor);
 
             return finalRot;
         }
@@ -452,12 +457,10 @@ namespace ProNav.GameObjects
             var closingRate = (_prevTargetDist - targDist);
             _prevTargetDist = targDist;
             var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
-            var targetRot = Helpers.LerpAngle(targetRotation, target_rotation, closeRateFact);
-
-            //var targetRot = target_rotation;
+            var targetRot = Helpers.Lerp(targetRotation, target_rotation, closeRateFact);
 
             var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
-            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
+            var finalRot = Helpers.Lerp(veloAngle, targetRot, armFactor);
 
             return finalRot;
         }

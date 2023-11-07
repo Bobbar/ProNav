@@ -54,9 +54,11 @@ namespace ProNav
         private GuidanceType _guidanceType = GuidanceType.Advanced;
         private bool _useControlSurfaces = false;
 
+        private TargetTypes _targetTypes = TargetTypes.Random;
+
         private D2DColor _blurColor = new D2DColor(0.05f, D2DColor.Black);
         private D2DPoint _infoPosition = new D2DPoint(20, 20);
-        private D2DPoint _missleOverlayPosition = new D2DPoint(World.ViewPortSize.width * 0.5f * World.ZoomScale, World.ViewPortSize.height * 0.15f * World.ZoomScale);
+
         private Random _rnd => Helpers.Rnd;
 
         public ProNavUI()
@@ -104,7 +106,6 @@ namespace ProNav
             _device?.Resize();
 
             World.UpdateViewport(this.Size);
-            _missleOverlayPosition = new D2DPoint(World.ViewPortSize.width * 0.5f * World.ZoomScale, World.ViewPortSize.height * 0.15f * World.ZoomScale);
             _colGrid.Resize(World.ViewPortSize.width, World.ViewPortSize.height);
 
             ResumeRender();
@@ -404,32 +405,62 @@ namespace ProNav
             }
         }
 
+        private void CycleTargetTypes()
+        {
+            var len = Enum.GetNames(typeof(TargetTypes)).Length;
+            var cur = (int)_targetTypes;
+            int next = cur;
+
+            next = (next + 1) % len;
+
+            _targetTypes = (TargetTypes)next;
+        }
+
         private void SpawnTarget(D2DPoint pos)
         {
-            //var targ = new ErraticMovingTarget(pos);
-            //var targ = new RotatingMovingTarget(pos);
-            //var targ = new LinearMovingTarget(pos);
-            //var targ = new StaticTarget(pos);
-
             Target targ = null;
-            var rndT = _rnd.Next(4);
-            switch (rndT)
+
+            switch (_targetTypes)
             {
-                case 0:
-                    targ = new ErraticMovingTarget(pos);
+                case TargetTypes.Random:
+
+                    var rndT = _rnd.Next(4);
+                    switch (rndT)
+                    {
+                        case 0:
+                            targ = new ErraticMovingTarget(pos);
+                            break;
+
+                        case 1:
+                            targ = new RotatingMovingTarget(pos);
+                            break;
+
+                        case 2:
+                            targ = new LinearMovingTarget(pos);
+                            break;
+
+                        case 3:
+                            targ = new StaticTarget(pos);
+                            break;
+                    }
                     break;
 
-                case 1:
-                    targ = new RotatingMovingTarget(pos);
+                case TargetTypes.Static:
+                    targ = new StaticTarget(pos);
                     break;
 
-                case 2:
+                case TargetTypes.Linear:
                     targ = new LinearMovingTarget(pos);
                     break;
 
-                case 3:
-                    targ = new StaticTarget(pos);
+                case TargetTypes.Rotating:
+                    targ = new RotatingMovingTarget(pos);
                     break;
+
+                case TargetTypes.Erratic:
+                    targ = new ErraticMovingTarget(pos);
+                    break;
+
             }
 
             _targets.Add(targ);
@@ -624,7 +655,8 @@ namespace ProNav
             string infoText = string.Empty;
             infoText += $"Guidance Type: {_guidanceType.ToString()}\n";
 
-            infoText += $"Missle Type: {(_useControlSurfaces ? "Control Surfaces" : "Direct Rotation")}\n";
+            infoText += $"Missile Type: {(_useControlSurfaces ? "Control Surfaces" : "Direct Rotation")}\n";
+            infoText += $"Target Type: {_targetTypes.ToString()}\n";
 
             var numObj = _missiles.Count + _targets.Count + _bullets.Count;
             infoText += $"Num Objects: {numObj}\n";
@@ -645,8 +677,10 @@ A: Spawn target at click pos
 M: Move ship to click pos
 C: Clear all
 I: Toggle Aero Display
-O: Toggle Missle View
+O: Toggle Missile View
 U: Toggle Guidance Tracking Dots
+S: Toggle Missile Type
+Y: Cycle Target Types
 +/-: Zoom
 Shift + (+/-): Change Delta Time
 S: Missile Type
@@ -733,6 +767,10 @@ Mouse-Wheel: Rotate ship";
 
                 case 'u':
                     World.ShowTracking = !World.ShowTracking;
+                    break;
+
+                case 'y':
+                    CycleTargetTypes();
                     break;
 
                 case '=' or '+':

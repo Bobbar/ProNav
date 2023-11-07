@@ -157,6 +157,30 @@ namespace ProNav.GameObjects
             gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
         }
 
+        public virtual bool Contains(GameObjectPoly obj)
+        {
+            // Check for center point first.
+            if (Contains(obj.Position)) 
+                return true;
+
+            // Check all other poly points.
+            foreach (var pnt in obj.Polygon.Poly)
+            {
+                int i, j = 0;
+                bool c = false;
+                for (i = 0, j = Polygon.Poly.Length - 1; i < Polygon.Poly.Length; j = i++)
+                {
+                    if (((Polygon.Poly[i].Y > pnt.Y) != (Polygon.Poly[j].Y > pnt.Y)) && (pnt.X < (Polygon.Poly[j].X - Polygon.Poly[i].X) * (pnt.Y - Polygon.Poly[i].Y) / (Polygon.Poly[j].Y - Polygon.Poly[i].Y) + Polygon.Poly[i].X))
+                        c = !c;
+                }
+
+                if (c)
+                    return true;
+            }
+
+            return false;
+        }
+
         public virtual bool Contains(D2DPoint pnt)
         {
             int i, j = 0;

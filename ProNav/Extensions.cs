@@ -60,9 +60,9 @@ namespace ProNav
             return Helpers.Cross(vector, other);
         }
 
-        public static float AngleBetween(this D2DPoint vector, D2DPoint other)
+        public static float AngleBetween(this D2DPoint vector, D2DPoint other, bool clamp = false)
         {
-            return Helpers.AngleBetween(vector, other);
+            return Helpers.AngleBetween(vector, other, clamp);
         }
     }
 }

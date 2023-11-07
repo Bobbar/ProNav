@@ -74,7 +74,7 @@ namespace ProNav.GameObjects
         private float _renderOffset = 1.5f;
 
         public GuidanceType Guidance { get; set; } = GuidanceType.Advanced;
-        
+
         private bool _useControlSurfaces = false;
         private Wing _tailWing;
         private Wing _noseWing;
@@ -86,6 +86,7 @@ namespace ProNav.GameObjects
             this.Target = target;
             this.Polygon = new RenderPoly(_missilePoly);
             this.FlamePoly = new RenderPoly(_flamePoly);
+            this.Rotation = player.Rotation;
 
             _prevPos = this.Position;
             _prevTargPos = target.Position;
@@ -98,34 +99,14 @@ namespace ProNav.GameObjects
                 //_noseWing = new Wing(3f, 0.05f, player.Rotation, new D2DPoint(7f, 0));
                 //_rocketBody = new Wing(0f, 0.05f, player.Rotation, D2DPoint.Zero);
 
-                _tailWing = new Wing(3f, 0.2f, player.Rotation, new D2DPoint(-6f, 0));
-                _noseWing = new Wing(3f, 0.1f, player.Rotation, new D2DPoint(7f, 0));
+                _tailWing = new Wing(4f, 0.2f, player.Rotation, new D2DPoint(-6f, 0));
+                _noseWing = new Wing(4f, 0.1f, player.Rotation, new D2DPoint(7f, 0));
                 _rocketBody = new Wing(0f, 0.1f, player.Rotation, D2DPoint.Zero);
             }
             else
             {
-                _rocketBody = new Wing(0f, 0.4f, player.Rotation, D2DPoint.Zero);
+                _rocketBody = new Wing(4f, 0.4f, player.Rotation, D2DPoint.Zero);
             }
-
-            // Set initial velo.
-            // Aero and guidance logic don't work if our velo is zero.
-            this.Velocity = GetThrust(1f);
-        }
-
-        private D2DPoint GetThrust(float dt)
-        {
-            // ***  THRUST ***
-            // Convert rotation into velo vector.
-            D2DPoint thrust = D2DPoint.Zero;
-
-            if (this.FUEL > 0f)
-            {
-                var vec = AngleToVector(this.Rotation);
-                vec *= THRUST + _thrustBoost;
-                thrust = dt * (vec / TotalMass);
-            }
-
-            return thrust;
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
@@ -137,7 +118,7 @@ namespace ProNav.GameObjects
 
             D2DPoint accel = D2DPoint.Zero;
 
-            accel += GetThrust(dt);
+            accel += GetThrust() * dt / TotalMass;
 
             // Apply aerodynamics.
             var liftDrag = D2DPoint.Zero;
@@ -186,18 +167,22 @@ namespace ProNav.GameObjects
                     break;
             }
 
+            if (this.Velocity.Length() == 0f)
+                guideRotation = this.Rotation;
 
             if (_useControlSurfaces)
             {
+                const float TAIL_AUTH = 1f;
                 const float NOSE_AUTH = 0.5f;
-                var nextDeflect = guideRotation;
 
-                // Control surfaces require the direct angle instead of a rotation offset by the velo angle as returned by guidance.
-                // Subtract the velo angle to make it work correctly.
-                var veloAngle = this.Velocity.Angle();
-                nextDeflect -= veloAngle;
+                // Compute deflection.
+                // The first two clamps might not be needed here.
+                var veloAngle = this.Velocity.Angle(true);
+                var nextDeflect = Helpers.ClampAngle(guideRotation);
+                nextDeflect -= Helpers.ClampAngle(veloAngle);
+                nextDeflect = Helpers.ClampAngle180(nextDeflect);
 
-                _tailWing.Deflection = -nextDeflect;
+                _tailWing.Deflection = TAIL_AUTH * -nextDeflect;
                 _noseWing.Deflection = NOSE_AUTH * nextDeflect;
             }
             else
@@ -205,7 +190,7 @@ namespace ProNav.GameObjects
                 this.Rotation = guideRotation;
             }
 
-
+            // Integrate acceleration.
             this.Velocity += accel;
 
             var dist = D2DPoint.Distance(this.Position, _prevPos);
@@ -275,7 +260,7 @@ namespace ProNav.GameObjects
                 gfx.DrawPolygon(this.FlamePoly.Poly, _flameFillColor, 1f, D2DDashStyle.Solid, _flameFillColor);
 
             gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
-           
+
             if (_useControlSurfaces)
             {
                 _tailWing.Render(gfx);
@@ -289,12 +274,8 @@ namespace ProNav.GameObjects
                 gfx.FillEllipse(new D2DEllipse(_finalAimPoint, new D2DSize(5f, 5f)), D2DColor.LawnGreen);
                 gfx.FillEllipse(new D2DEllipse(_stableAimPoint, new D2DSize(4f, 4f)), D2DColor.Blue);
                 gfx.FillEllipse(new D2DEllipse(_impactPnt, new D2DSize(3f, 3f)), D2DColor.Red);
-
-                gfx.FillEllipse(new D2DEllipse(this.Target.Position, new D2DSize(3f, 3f)), D2DColor.Yellow);
-
             }
         }
-
 
         private D2DPoint LiftDragForce(Wing wing)
         {
@@ -319,7 +300,7 @@ namespace ProNav.GameObjects
             const float AOA_FACT = 0.2f; // How much AoA effects drag.
             const float VELO_FACT = 0.2f; // How much velocity effects drag.
             float WING_AREA = wing.Area; // Area of the wing. Effects lift & drag forces.
-            const float MAX_LIFT = 31000f;//101000f; // Max lift force allowed.
+            const float MAX_LIFT = 20000f;//31000f; // Max lift force allowed.
             const float MAX_AOA = 40f; // Max AoA allowed before lift force reduces. (Stall)
             const float AIR_DENSITY = 1.225f;
             const float PARASITIC_DRAG = 0.5f;
@@ -332,12 +313,6 @@ namespace ProNav.GameObjects
 
             var aoaFact = Helpers.Factor(MAX_AOA, Math.Abs(aoa));
             var coeffLift = (float)Math.Sin(2f * aoaRads) * aoaFact;
-
-            //Alternate lift formula.
-            //var c = (float)Math.Pow(AIR_DENSITY * veloMag, 2f);
-            //float coeffLift = 0.01f;
-            //if (c > 0f)
-            //	coeffLift = (4f * (aoa * aoaFact)) / (float)Math.Sqrt(c);
 
             var liftForce = AIR_DENSITY * 0.5f * veloMagSq * WING_AREA * coeffLift;
             liftForce = Math.Clamp(liftForce, -MAX_LIFT, MAX_LIFT);
@@ -361,40 +336,48 @@ namespace ProNav.GameObjects
             var torque = Helpers.Cross(r, force);
             return torque;
         }
-      
+
+        private D2DPoint GetThrust()
+        {
+            // ***  THRUST ***
+            // Convert rotation into velo vector.
+            D2DPoint thrust = D2DPoint.Zero;
+
+            if (this.FUEL > 0f)
+            {
+                var vec = AngleToVector(this.Rotation);
+                vec *= THRUST + _thrustBoost;
+                thrust = vec;
+            }
+
+            return thrust;
+        }
+
         private float GuideToBasicLOS(float dt)
         {
             const float pValue = 0.5f;
             const float ARM_DIST = 600f;
-            const float MIN_CLOSE_RATE = 1f; // Min closing rate required to aim at predicted impact point.
-            const float TARG_DIST = 1000f;
 
             var target = this.Target.CenterOfPolygon();
             var targDist = D2DPoint.Distance(target, this.Position);
-            var veloAngle = this.Velocity.Angle();
+            var veloAngle = this.Velocity.Angle(true);
 
             var navigationTime = targDist / this.Velocity.Length();
             var los = (target + Target.Velocity * navigationTime) - this.Position;
-            var angle = this.Velocity.AngleBetween(los);
+
+            var angle = this.Velocity.AngleBetween(los, true);
             var adjustment = pValue * angle * D2DPoint.Normalize(los);
 
-            var leadRotation = adjustment.Angle();
-            var targetRotation = (target - this.Position).Angle();
-
-            //var closingRate = _closingRateSmooth.Add(_prevTargetDist - targDist);
-            //_prevTargetDist = targDist;
-            //var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
-            //var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, closeRateFact);
-
+            var leadRotation = adjustment.Angle(true);
             var targetRot = leadRotation;
 
-            //var distFact = Helpers.Factor(TARG_DIST, targDist);
-            //var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, distFact);
-
             var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
-            var finalRot = Helpers.Lerp(veloAngle, targetRot, armFactor);
+            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
 
             _impactPnt = (target + Target.Velocity * navigationTime);
+
+            if (angle == 0f)
+                return veloAngle;
 
             return finalRot;
         }
@@ -404,11 +387,9 @@ namespace ProNav.GameObjects
         {
             const float pValue = 3f;
             const float ARM_DIST = 600f;
-            const float MIN_CLOSE_RATE = 1f; // Min closing rate required to aim at predicted impact point.
 
             var target = this.Target.CenterOfPolygon();
-            var targDist = D2DPoint.Distance(target, this.Position);
-            var veloAngle = this.Velocity.Angle();
+            var veloAngle = this.Velocity.Angle(true);
 
             var los = target - this.Position;
             var navigationTime = los.Length() / this.Velocity.Length();
@@ -416,18 +397,11 @@ namespace ProNav.GameObjects
             _impactPnt = targRelInterceptPos;
             targRelInterceptPos *= pValue;
 
-            var leadRotation = ((target + targRelInterceptPos) - this.Position).Angle();
-            var targetRotation = (target - this.Position).Angle();
-
-            //var closingRate = _closingRateSmooth.Add(_prevTargetDist - targDist);
-            //_prevTargetDist = targDist;
-            //var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
-            //var targetRot = Helpers.LerpAngle(targetRotation, leadRotation, closeRateFact);
-
+            var leadRotation = ((target + targRelInterceptPos) - this.Position).Angle(true);
             var targetRot = leadRotation;
 
             var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
-            var finalRot = Helpers.Lerp(veloAngle, targetRot, armFactor);
+            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
 
             return finalRot;
         }
@@ -443,7 +417,7 @@ namespace ProNav.GameObjects
 
             if (GetInterceptDirection(this.Position, target, this.Velocity.Length(), this.Target.Velocity, out direction))
             {
-                target_rotation = direction.Angle();
+                target_rotation = direction.Angle(true);
             }
             else
             {
@@ -451,16 +425,16 @@ namespace ProNav.GameObjects
             }
 
             var targDist = D2DPoint.Distance(target, this.Position);
-            var targetRotation = (target - this.Position).Angle();
-            var veloAngle = this.Velocity.Angle();
+            var targetRotation = (target - this.Position).Angle(true);
+            var veloAngle = this.Velocity.Angle(true);
 
             var closingRate = (_prevTargetDist - targDist);
             _prevTargetDist = targDist;
             var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
-            var targetRot = Helpers.Lerp(targetRotation, target_rotation, closeRateFact);
+            var targetRot = Helpers.LerpAngle(targetRotation, target_rotation, closeRateFact);
 
             var armFactor = Helpers.Factor(_distTraveled, ARM_DIST);
-            var finalRot = Helpers.Lerp(veloAngle, targetRot, armFactor);
+            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
 
             return finalRot;
         }
@@ -484,7 +458,6 @@ namespace ProNav.GameObjects
 
         private bool GetInterceptDirection(D2DPoint origin, D2DPoint targetPosition, float missileSpeed, D2DPoint targetVelocity, out D2DPoint result)
         {
-
             var los = origin - targetPosition;
             var distance = los.Length(); ;
             var alpha = Helpers.DegreesToRads(los.AngleBetween(targetVelocity));
@@ -511,7 +484,7 @@ namespace ProNav.GameObjects
 
         private float GuideToAdvanced(float dt)
         {
-            const float MAX_ROT_RATE = 2.8f; // Max rotation rate.
+            const float MAX_ROT_RATE = 1.5f; // Max rotation rate.
             const float MIN_ROT_RATE = 1.0f; // Min rotation rate.
             const float MIN_ROT_SPEED = 600f; // Speed at which rotation rate will be the smallest.
             const float ARM_DIST = 600f; // How far we must travel before engaging the target.

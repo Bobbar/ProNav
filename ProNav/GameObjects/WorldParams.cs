@@ -10,15 +10,14 @@ namespace ProNav.GameObjects
 {
     public static class World
     {
-        public static float DT 
-        { 
+        public static float DT
+        {
             get { return _dt; }
             set
             {
-                if (value > 0f && value < 1f)
-                    _dt = value;
-            } 
-        } 
+                _dt = Math.Clamp(value, 0.0004f, 1f);
+            }
+        }
 
 
         public static float RenderScale { get; set; } = 0.1f;

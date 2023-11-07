@@ -21,6 +21,8 @@ namespace ProNav.GameObjects
         { 
             this.MaxRadius = maxRadius;
             this.Duration = duration;
+
+            _color.r = _rnd.NextFloat(0.8f, 1f);
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)

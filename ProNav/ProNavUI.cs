@@ -16,6 +16,7 @@ namespace ProNav
 
         private const int PHYSICS_STEPS = 8;
         private const float ROTATE_RATE = 2f;
+        private const float DT_ADJ_AMT = 0.00025f;
 
         private ManualResetEventSlim _pauseRenderEvent = new ManualResetEventSlim(true);
         private ManualResetEventSlim _stopRenderEvent = new ManualResetEventSlim(true);
@@ -55,7 +56,7 @@ namespace ProNav
 
         private D2DColor _blurColor = new D2DColor(0.05f, D2DColor.Black);
         private D2DPoint _infoPosition = new D2DPoint(20, 20);
-
+        private D2DPoint _missleOverlayPosition = new D2DPoint(World.ViewPortSize.width * 0.5f * World.ZoomScale, World.ViewPortSize.height * 0.15f * World.ZoomScale);
         private Random _rnd => Helpers.Rnd;
 
         public ProNavUI()
@@ -103,6 +104,7 @@ namespace ProNav
             _device?.Resize();
 
             World.UpdateViewport(this.Size);
+            _missleOverlayPosition = new D2DPoint(World.ViewPortSize.width * 0.5f * World.ZoomScale, World.ViewPortSize.height * 0.15f * World.ZoomScale);
             _colGrid.Resize(World.ViewPortSize.width, World.ViewPortSize.height);
 
             ResumeRender();
@@ -246,10 +248,8 @@ namespace ProNav
 
                 foreach (var obj in nearest)
                 {
-                    if (obj is Explosion)
+                    if (obj is Explosion exp)
                     {
-                        var exp = obj as Explosion;
-
                         if (exp.Contains(targ.Position))
                         {
                             if (!targ.IsExpired)
@@ -260,13 +260,27 @@ namespace ProNav
                     }
                     else
                     {
-                        if (targ.Contains(obj.Position) || targ.Contains(obj.Position + (obj.Velocity * (World.DT / 8f))))
+                        if (obj is GameObjectPoly objp)
                         {
-                            if (!targ.IsExpired)
-                                AddExplosion(targ.Position);
+                            if (targ.Contains(objp))
+                            {
+                                if (!targ.IsExpired)
+                                    AddExplosion(targ.Position);
 
-                            targ.IsExpired = true;
-                            obj.IsExpired = true;
+                                targ.IsExpired = true;
+                                obj.IsExpired = true;
+                            }
+                        }
+                        else
+                        {
+                            if (targ.Contains(obj.Position) || targ.Contains(obj.Position + (obj.Velocity * (World.DT / 8f))))
+                            {
+                                if (!targ.IsExpired)
+                                    AddExplosion(targ.Position);
+
+                                targ.IsExpired = true;
+                                obj.IsExpired = true;
+                            }
                         }
                     }
                 }
@@ -447,7 +461,7 @@ namespace ProNav
             }
         }
 
-        private void AddExplosion(D2DPoint pos) 
+        private void AddExplosion(D2DPoint pos)
         {
             var explosion = new Explosion(pos, 200f, 0.4f);
             _explosions.Add(explosion);
@@ -574,35 +588,11 @@ namespace ProNav
             DrawInfo(gfx, _infoPosition);
 
             //DrawGrid(gfx);
-
-            //DrawRadial(gfx, new D2DPoint(300, 300));
-        }
-
-        private void DrawRadial(D2DGraphics gfx, D2DPoint pos)
-        {
-            const float radius = 300f;
-            const float step = 10f;
-
-            float angle = 0f;
-
-            while (angle < 360f)
-            {
-                var vec = Helpers.AngleToVectorDegrees(angle);
-                vec = pos + (vec * radius);
-
-                gfx.DrawLine(pos, vec, D2DColor.Gray);
-
-                gfx.DrawText(angle.ToString(), D2DColor.White, "Consolas", 12f, vec.X, vec.Y);
-
-                angle += step;
-            }
-
-            gfx.DrawEllipse(new D2DEllipse(pos, new D2DSize(radius, radius)), D2DColor.White);
         }
 
         private void DrawMissileOverlays(D2DGraphics gfx)
         {
-            var scale = 7f * World.ViewPortScaleMulti;
+            var scale = 8f * World.ViewPortScaleMulti;
 
             var zAmt = World.ZoomScale;
             var pos = new D2DPoint(World.ViewPortSize.width * 0.5f * zAmt, World.ViewPortSize.height * 0.15f * zAmt);
@@ -617,8 +607,11 @@ namespace ProNav
 
                 gfx.ScaleTransform(scale, scale);
                 gfx.RotateTransform(-missile.Rotation, missile.Position);
-                gfx.TranslateTransform(offset.X, offset.Y); 
+                gfx.TranslateTransform(offset.X, offset.Y);
                 gfx.TranslateTransform(pos.X, pos.Y);
+
+                foreach (var t in _targets)
+                    t.Render(gfx);
 
                 missile.Render(gfx);
 
@@ -638,7 +631,7 @@ namespace ProNav
 
             infoText += $"FPS: {Math.Round(_renderFPS, 0)}\n";
             infoText += $"Zoom: {Math.Round(World.ZoomScale, 2)}\n";
-            infoText += $"DT: {Math.Round(World.DT, 3)}\n";
+            infoText += $"DT: {Math.Round(World.DT, 4)}\n";
 
             if (_showHelp)
             {
@@ -655,6 +648,7 @@ I: Toggle Aero Display
 O: Toggle Missle View
 U: Toggle Guidance Tracking Dots
 +/-: Zoom
+Shift + (+/-): Change Delta Time
 S: Missile Type
 Shift + Mouse-Wheel: Guidance Type
 Left-Click: Thrust ship
@@ -744,7 +738,7 @@ Mouse-Wheel: Rotate ship";
                 case '=' or '+':
                     if (_shiftDown)
                     {
-                        World.DT += 0.01f;
+                        World.DT += DT_ADJ_AMT;
                     }
                     else
                     {
@@ -757,7 +751,7 @@ Mouse-Wheel: Rotate ship";
 
                     if (_shiftDown)
                     {
-                        World.DT -= 0.01f;
+                        World.DT -= DT_ADJ_AMT;
                     }
                     else
                     {

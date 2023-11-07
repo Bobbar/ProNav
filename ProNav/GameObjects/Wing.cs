@@ -72,7 +72,7 @@ namespace ProNav.GameObjects
           
             var startB = this.Position - Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;
             var endB = this.Position + Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;
-            gfx.DrawLine(startB, endB, D2DColor.DarkGray, 1f);
+            gfx.DrawLine(startB, endB, D2DColor.DarkGray, 2f);
 
 
             var start = this.Position - Helpers.AngleToVectorDegrees(this.Rotation) * RenderLength;

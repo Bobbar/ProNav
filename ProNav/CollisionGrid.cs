@@ -23,10 +23,10 @@ namespace ProNav
 
             int nX = (int)(gridSize.Width / _sideLen) + GROW_PADDING;
             int nY = (int)(gridSize.Height / _sideLen) + GROW_PADDING;
-            
+
             _dims = new Size(nX, nY);
             _bounds = new MinMax(0, 0, gridSize.Width, gridSize.Height);
-            
+
             _grid = new List<GameObject>[_dims.Width * _dims.Height];
         }
 

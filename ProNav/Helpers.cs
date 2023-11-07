@@ -98,10 +98,10 @@ namespace ProNav
             return vec;
         }
 
-        public static float AngleBetween(D2DPoint vector, D2DPoint other)
+        public static float AngleBetween(D2DPoint vector, D2DPoint other, bool clamp = false)
         {
-            var angA = vector.Angle();
-            var angB = other.Angle();
+            var angA = vector.Angle(clamp);
+            var angB = other.Angle(clamp);
 
             var angle = AngleDiff(angA, angB);
 
@@ -147,6 +147,18 @@ namespace ProNav
 
             if (ret < 0f)
                 ret += 360f;
+
+            return ret;
+        }
+
+        public static float ClampAngle180(float angle)
+        {
+            var ret = angle % 360f;
+
+            ret = (ret + 360f) % 360f;
+
+            if (ret > 180f)
+                ret -= 360f;
 
             return ret;
         }

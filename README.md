@@ -15,7 +15,7 @@ Remarks:
 
 This actually started as an Asteroids clone but then I went down a rabbit hole of missle guidance, so I started a new project... 
 
-I felt that nearly all examples I found were cheating by directly setting the instant velocity of the missile.  Instead, I sought to implement realistic physics with aerodynamics, mass and inertia and to create a guidance solution which only effects the rotation (either by direct manipulation or inderectly via control surfaces/wings).
+I felt that nearly all examples I found were cheating by directly setting the instant velocity of the missile.  Instead, I sought to implement realistic physics with aerodynamics, mass and inertia and to create a guidance solution which only effects the rotation (either by direct manipulation or indirectly via control surfaces/wings).
 
 I included 3 simple PN guidance solutions based on other examples, and one "Advanced" solution of my own making.  My solution tries to perform better long-term predictions as well as handle cases in which the missile "rat chases" the target in endless circles.  A handful of target types are available to test them against.
 

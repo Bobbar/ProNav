@@ -43,17 +43,12 @@ namespace ProNav.GameObjects
             get { return MASS + FUEL; }
         }
 
-
         private D2DPoint _prevTargPos = D2DPoint.Zero;
         private D2DPoint _prevPos = D2DPoint.Zero;
         private D2DPoint _prevImpactPnt = D2DPoint.Zero;
         private D2DPoint _stableAimPoint = D2DPoint.Zero;
         private D2DPoint _finalAimPoint = D2DPoint.Zero;
         private D2DPoint _impactPnt = D2DPoint.Zero;
-        private D2DPoint _liftVector = D2DPoint.Zero;
-        private D2DPoint _dragVector = D2DPoint.Zero;
-        private D2DPoint _lastMissedLoc = D2DPoint.Zero;
-        private D2DPoint _missLoc = D2DPoint.Zero;
 
         private float _prevVelo = 0f;
         private float _prevTargetDist = 0f;
@@ -68,7 +63,6 @@ namespace ProNav.GameObjects
         private const float MASS = 25f;
         private float FUEL = 80f;
         private float _thrustBoost = 0;
-        private float _maxGs = float.MinValue;
 
         private D2DColor _flameFillColor = new D2DColor(0.6f, D2DColor.Yellow);
         private float _renderOffset = 1.5f;
@@ -90,15 +84,10 @@ namespace ProNav.GameObjects
 
             _prevPos = this.Position;
             _prevTargPos = target.Position;
-
             _useControlSurfaces = useControlSurfaces;
 
             if (_useControlSurfaces)
             {
-                //_tailWing = new Wing(3f, 0.1f, player.Rotation, new D2DPoint(-6f, 0));
-                //_noseWing = new Wing(3f, 0.05f, player.Rotation, new D2DPoint(7f, 0));
-                //_rocketBody = new Wing(0f, 0.05f, player.Rotation, D2DPoint.Zero);
-
                 _tailWing = new Wing(4f, 0.2f, player.Rotation, new D2DPoint(-6f, 0));
                 _noseWing = new Wing(4f, 0.1f, player.Rotation, new D2DPoint(7f, 0));
                 _rocketBody = new Wing(0f, 0.1f, player.Rotation, D2DPoint.Zero);
@@ -167,6 +156,7 @@ namespace ProNav.GameObjects
                     break;
             }
 
+            // Guidance can return NaN if our velo is zero.
             if (this.Velocity.Length() == 0f)
                 guideRotation = this.Rotation;
 
@@ -318,9 +308,6 @@ namespace ProNav.GameObjects
             liftForce = Math.Clamp(liftForce, -MAX_LIFT, MAX_LIFT);
 
             var liftVec = veloNormTan * liftForce;
-
-            _liftVector = liftVec;
-            _dragVector = dragVec;
 
             wing.LiftVector = liftVec;
             wing.DragVector = dragVec;
@@ -488,11 +475,11 @@ namespace ProNav.GameObjects
             const float MIN_ROT_RATE = 1.0f; // Min rotation rate.
             const float MIN_ROT_SPEED = 600f; // Speed at which rotation rate will be the smallest.
             const float ARM_DIST = 600f; // How far we must travel before engaging the target.
-            const float MISS_TARG_DIST = 80f; // Distance to target to be considered a miss.
+            const float MISS_TARG_DIST = 200f; // Distance to target to be considered a miss.
             const float REENGAGE_DIST = 2500f; // How far we must be from the target before re-engaging after a miss.
             const float ROT_MOD_DIST = 1000f; // Distance to begin increasing rotation rate. (Get more aggro the closer we get)
             const float ROT_MOD_AMT = 1f; //1.5f; // Max amount to increase rot rate per above distance.
-            const float IMPACT_POINT_DELTA_THRESH = 2f; // Smaller value = target impact point later. (Waits until the point has stablized more)
+            const float IMPACT_POINT_DELTA_THRESH = 2f; // Smaller value = target impact point later. (Waits until the point has stabilized more)
             const float MIN_CLOSE_RATE = 1f; // Min closing rate required to aim at predicted impact point.
 
             var target = this.Target.CenterOfPolygon();
@@ -563,7 +550,7 @@ namespace ProNav.GameObjects
             var veloNorm = D2DPoint.Normalize(this.Velocity);
             var veloNormTan = new D2DPoint(veloNorm.Y, -veloNorm.Cross(new D2DPoint(0, 1))); // Up
 
-            // Compute two tangental rotations.
+            // Compute two tangential rotations.
             var rotAmtNorm = aimDirection.Cross(veloNorm) * (180f / (float)Math.PI);
             var rotAmtTan = -aimDirection.Cross(veloNormTan) * (180f / (float)Math.PI);
 
@@ -597,19 +584,11 @@ namespace ProNav.GameObjects
 
                     // Increase re-engage dist slightly with each miss.
                     _reEngageMod += REENGAGE_DIST * 0.5f;
-
-                    _lastMissedLoc = target;
-                    _missLoc = this.Position;
-
-                    //Debug.WriteLine($"Miss dist: {D2DPoint.Distance(_missLoc, _lastMissedLoc)}  Impact dist: {D2DPoint.Distance(_finalAimPoint, target)}  PosVImp: {D2DPoint.Distance(_finalAimPoint, this.Position)}");
                 }
             }
             else
             {
                 _missedTarget = false;
-
-                //rotAuthority = Helpers.Factor(closingRate, MIN_CLOSE_RATE * 4f);
-
             }
 
             // Reduce rotation authority if we missed until we are the specified distance away from the target.
@@ -626,8 +605,9 @@ namespace ProNav.GameObjects
         private D2DPoint RefineImpact(D2DPoint targetPos, D2DPoint targetVelo, double targAngleDelta, double framesToImpact, float dt)
         {
             D2DPoint predicted = targetPos;
+            const int MAX_FTI = 6000;
 
-            if (framesToImpact >= 1 && framesToImpact < 6000)
+            if (framesToImpact >= 1 && framesToImpact < MAX_FTI)
             {
                 var targLoc = targetPos;
                 var angle = targetVelo.AngleD();

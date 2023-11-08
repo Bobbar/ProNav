@@ -641,8 +641,8 @@ namespace ProNav
                 gfx.TranslateTransform(offset.X, offset.Y);
                 gfx.TranslateTransform(pos.X, pos.Y);
 
-                foreach (var t in _targets)
-                    t.Render(gfx);
+                for (int t = 0; t < _targets.Count; t++)
+                    _targets[t].Render(gfx);
 
                 missile.Render(gfx);
 
@@ -684,7 +684,7 @@ Y: Cycle Target Types
 +/-: Zoom
 Shift + (+/-): Change Delta Time
 S: Missile Type
-Shift + Mouse-Wheel: Guidance Type
+Shift + Mouse-Wheel or E: Guidance Type
 Left-Click: Thrust ship
 Right-Click: Fire auto cannon
 Middle-Click: Fire missle
@@ -722,10 +722,19 @@ Mouse-Wheel: Rotate ship";
 
                 case 'b':
                     _motionBlur = !_motionBlur;
+                    _trailsOn = false;
                     break;
 
                 case 'c':
                     Clear();
+                    break;
+
+                case 'e':
+                    var len = Enum.GetNames(typeof(GuidanceType)).Length;
+                    var cur = (int)_guidanceType;
+                    int next = cur;
+                    next = (next + 1) % len;
+                    _guidanceType = (GuidanceType)next;
                     break;
 
                 case 'i':
@@ -763,6 +772,7 @@ Mouse-Wheel: Rotate ship";
 
                 case 't':
                     _trailsOn = !_trailsOn;
+                    _motionBlur = false;
                     break;
 
                 case 'u':

@@ -8,7 +8,7 @@ namespace ProNav.GameObjects
         public int PolyRadius { get; set; } = 80;
 
         protected readonly float MIN_MAX_VELO = 250f;//150f;
-        protected readonly float MIN_MAX_ROT = 70f; //40f;
+        protected readonly float MIN_MAX_ROT = 50f; //40f;
 
         public Target() { }
 
@@ -39,18 +39,13 @@ namespace ProNav.GameObjects
 
     public class LinearMovingTarget : Target
     {
+        private readonly float _veloFactor = 0.5f;
         public LinearMovingTarget() { }
 
         public LinearMovingTarget(D2DPoint pos) : base(pos)
         {
             this.Polygon = new RenderPoly(GameObjectPoly.RandomPoly(this.NumPolyPoints, this.PolyRadius));
-            this.Velocity = new D2DPoint(_rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO), _rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO));
-        }
-
-        public LinearMovingTarget(D2DPoint pos, int numPolyPoints, int polyRadius) : base(pos, numPolyPoints, polyRadius)
-        {
-            this.Polygon = new RenderPoly(GameObjectPoly.RandomPoly(this.NumPolyPoints, this.PolyRadius));
-            this.Velocity = new D2DPoint(_rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO), _rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO));
+            this.Velocity = new D2DPoint(_rnd.NextFloat(-MIN_MAX_VELO * _veloFactor, MIN_MAX_VELO * _veloFactor), _rnd.NextFloat(-MIN_MAX_VELO * _veloFactor, MIN_MAX_VELO * _veloFactor));
         }
 
         public override void Render(D2DGraphics gfx)
@@ -108,6 +103,9 @@ namespace ProNav.GameObjects
         private float _targRot = 0;
         private D2DPoint _targVelo = D2DPoint.Zero;
 
+        private float _minTime = 5f;
+        private float _maxTime = 20f;
+
         private SmoothFloat _rotSmooth = new SmoothFloat(300);
         private SmoothPos _veloSmooth = new SmoothPos(300);
 
@@ -133,11 +131,11 @@ namespace ProNav.GameObjects
             if (_curRotTime >= _nextRotTime)
             {
                 _targRot = _rnd.NextFloat(-MIN_MAX_ROT, MIN_MAX_ROT);
-                _nextRotTime = _rnd.NextFloat(3f, 10f);
+                _nextRotTime = _rnd.NextFloat(_minTime, _maxTime);
                 _curRotTime = 0f;
                 _prevRotTarg = this.RotationSpeed;
             }
-            
+
             this.RotationSpeed = Helpers.Lerp(_prevRotTarg, _targRot, Helpers.Factor(_curRotTime, _nextRotTime));
             _curRotTime += dt;
 
@@ -145,11 +143,11 @@ namespace ProNav.GameObjects
             if (_curVeloTime >= _nextVeloTime)
             {
                 _targVelo = new D2DPoint(_rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO), _rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO));
-                _nextVeloTime = _rnd.NextFloat(3f, 10f);
+                _nextVeloTime = _rnd.NextFloat(_minTime, _maxTime);
                 _curVeloTime = 0f;
                 _prevVeloTarg = this.Velocity;
             }
-            
+
             this.Velocity = Helpers.LerpPoints(_prevVeloTarg, _targVelo, Helpers.Factor(_curVeloTime, _nextVeloTime));
             _curVeloTime += dt;
 

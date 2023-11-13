@@ -52,7 +52,7 @@ namespace ProNav
 
         private Ship _player = new Ship();
         private GuidanceType _guidanceType = GuidanceType.Advanced;
-        private bool _useControlSurfaces = false;
+        private bool _useControlSurfaces = true;
 
         private TargetTypes _targetTypes = TargetTypes.Random;
 

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using unvell.D2DLib;
 
 namespace ProNav.GameObjects
@@ -34,51 +29,58 @@ namespace ProNav.GameObjects
 
         private D2DPoint _prevPosition;
         private float _deflection = 0f;
+        private Missile _missle;
 
-        public Wing(float renderLen, float area, float rotation, D2DPoint position)
+        public Wing(Missile missle, float renderLen, float area, D2DPoint position)
         {
             RenderLength = renderLen;
             Area = area;
             Position = position;
             ReferencePosition = position;
-            Rotation = rotation;
+            Rotation = missle.Rotation;
             this.Velocity = D2DPoint.Zero;
+            _missle = missle;
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
         {
-            D2DPoint nextVelo = D2DPoint.Zero;
+            this.Rotation = _missle.Rotation + this.Deflection;
+            this.Position = ApplyTranslation(this.ReferencePosition, _missle.Rotation, _missle.Position, renderScale);
+
+            var nextVelo = D2DPoint.Zero;
 
             if (_prevPosition != D2DPoint.Zero)
                 nextVelo = (this.Position - _prevPosition);
             else
                 _prevPosition = this.Position;
-            
+
             _prevPosition = this.Position;
 
             if (nextVelo.Length() <= MAX_VELO)
                 this.Velocity = nextVelo;
             else
+            {
                 Debug.WriteLine($"Err velo too high!  ({nextVelo.Length()})");
+                this.Velocity = this.Velocity.Normalized() * MAX_VELO;
+            }
         }
 
         public override void Render(D2DGraphics gfx)
         {
-            if (World.ShowAero)
-            {
-                gfx.DrawLine(this.Position, this.Position + (LiftVector * 0.05f), D2DColor.SkyBlue, 0.5f);
-                gfx.DrawLine(this.Position, this.Position + (DragVector * 0.08f), D2DColor.Red, 0.5f);
-            }
-          
             var startB = this.Position - Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;
             var endB = this.Position + Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;
             gfx.DrawLine(startB, endB, D2DColor.DarkGray, 2f);
 
+            if (World.ShowAero)
+            {
+                gfx.DrawLine(this.Position, this.Position + (LiftVector * 0.05f), D2DColor.SkyBlue, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
+                gfx.DrawLine(this.Position, this.Position + (DragVector * 0.08f), D2DColor.Red, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
+            }
 
             var start = this.Position - Helpers.AngleToVectorDegrees(this.Rotation) * RenderLength;
             var end = this.Position + Helpers.AngleToVectorDegrees(this.Rotation) * RenderLength;
-            gfx.DrawLine(start, end, D2DColor.Blue, 1f);
-           
+            gfx.DrawLine(start, end, D2DColor.Blue, 1f, D2DDashStyle.Solid, D2DCapStyle.Round, D2DCapStyle.Round);
+
         }
 
     }

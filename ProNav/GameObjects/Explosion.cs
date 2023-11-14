@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using unvell.D2DLib;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+﻿using unvell.D2DLib;
 
 namespace ProNav.GameObjects
 {
@@ -29,12 +23,40 @@ namespace ProNav.GameObjects
         {
             base.Update(dt, viewport, renderScale);
 
-            _currentRadius = MaxRadius * (_age / Duration);
+            //_currentRadius = MaxRadius * (_age / Duration);
+            //_currentRadius = MaxRadius * EaseQuinticOut(_age / Duration);
+            //_currentRadius = MaxRadius * EaseQuinticIn(_age / Duration);
+            //_currentRadius = MaxRadius * EaseOutElastic(_age / Duration);
+            _currentRadius = MaxRadius * EaseOutBack(_age / Duration);
 
             _age += dt;
 
             if (_age >= Duration)
                 this.IsExpired = true;
+        }
+
+        private float EaseQuinticOut(float k)
+        {
+            return 1f + ((k -= 1f) * (float)Math.Pow(k, 4));
+        }
+        private float EaseQuinticIn(float k)
+        {
+            return k * k * k * k * k;
+        }
+
+        private float EaseOutElastic(float k)
+        {
+            const float c4 = (2f * (float)Math.PI) / 3f;
+
+            return k == 0f ? 0f : k == 1f ? 1f : (float)Math.Pow(2f, -10f * k) * (float)Math.Sin((k * 10f - 0.75f) * c4) + 1f;
+        }
+
+        private float EaseOutBack(float k)
+        {
+            const float c1 = 1.70158f;
+            const float c3 = c1 + 1f;
+
+            return (float)(1f + c3 * Math.Pow(k - 1f, 3f) + c1 * Math.Pow(k - 1f, 2f));
         }
 
         public override void Render(D2DGraphics gfx)

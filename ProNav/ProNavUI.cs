@@ -494,7 +494,8 @@ namespace ProNav
 
         private void AddExplosion(D2DPoint pos)
         {
-            var explosion = new Explosion(pos, 200f, 0.4f);
+            var explosion = new Explosion(pos, 200f, 1.4f);
+
             _explosions.Add(explosion);
             _colGrid.Add(explosion);
         }

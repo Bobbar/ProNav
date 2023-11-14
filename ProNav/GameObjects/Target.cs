@@ -19,6 +19,21 @@ namespace ProNav.GameObjects
             this.NumPolyPoints = numPolyPoints;
             this.PolyRadius = polyRadius;
         }
+
+        protected virtual D2DPoint RandOPoint(float minMax)
+        {
+            return new D2DPoint(RandOFloat(minMax), RandOFloat(minMax));
+        }
+
+        protected virtual float RandOFloat(float minMax)
+        {
+            return RandOFloat(-minMax, minMax);
+        }
+
+        protected virtual float RandOFloat(float min, float max)
+        {
+            return _rnd.NextFloat(min, max);
+        }
     }
 
     public class StaticTarget : Target
@@ -26,7 +41,7 @@ namespace ProNav.GameObjects
         public StaticTarget(D2DPoint pos) : base(pos)
         {
             this.Polygon = new RenderPoly(GameObjectPoly.RandomPoly(this.NumPolyPoints, this.PolyRadius));
-            this.RotationSpeed = _rnd.NextFloat(-MIN_MAX_ROT, MIN_MAX_ROT);
+            this.RotationSpeed = RandOFloat(MIN_MAX_ROT);
         }
 
         public override void Render(D2DGraphics gfx)
@@ -45,7 +60,12 @@ namespace ProNav.GameObjects
         public LinearMovingTarget(D2DPoint pos) : base(pos)
         {
             this.Polygon = new RenderPoly(GameObjectPoly.RandomPoly(this.NumPolyPoints, this.PolyRadius));
-            this.Velocity = new D2DPoint(_rnd.NextFloat(-MIN_MAX_VELO * _veloFactor, MIN_MAX_VELO * _veloFactor), _rnd.NextFloat(-MIN_MAX_VELO * _veloFactor, MIN_MAX_VELO * _veloFactor));
+            this.Velocity = RandOPoint(MIN_MAX_VELO);
+        }
+
+        protected override float RandOFloat(float minMax)
+        {
+            return base.RandOFloat(minMax) * _veloFactor;
         }
 
         public override void Render(D2DGraphics gfx)
@@ -64,16 +84,15 @@ namespace ProNav.GameObjects
         {
             this.Polygon = new RenderPoly(GameObjectPoly.RandomPoly(this.NumPolyPoints, this.PolyRadius));
 
-            this.Velocity = new D2DPoint(_rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO), _rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO));
-            this.RotationSpeed = _rnd.NextFloat(-MIN_MAX_ROT, MIN_MAX_ROT);
+            this.Velocity = RandOPoint(MIN_MAX_VELO);
+            this.RotationSpeed = RandOFloat(MIN_MAX_ROT);
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
         {
             base.Update(dt, viewport, renderScale);
 
-            var rads = -this.Rotation * ((float)Math.PI / 180f);
-            var vec = new D2DPoint((float)Math.Cos(rads), (float)Math.Sin(rads));
+            var vec = AngleToVector(this.Rotation);
             this.Velocity = vec * this.Velocity.Length();
         }
 
@@ -113,9 +132,8 @@ namespace ProNav.GameObjects
         public ErraticMovingTarget(D2DPoint pos) : base(pos)
         {
             this.Polygon = new RenderPoly(GameObjectPoly.RandomPoly(this.NumPolyPoints, this.PolyRadius));
-
-            this.Velocity = new D2DPoint(_rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO), _rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO));
-            this.RotationSpeed = _rnd.NextFloat(-MIN_MAX_ROT, MIN_MAX_ROT);
+            this.Velocity = RandOPoint(MIN_MAX_VELO);
+            this.RotationSpeed = RandOFloat(MIN_MAX_ROT);
 
             _targRot = this.RotationSpeed;
             _targVelo = this.Velocity;
@@ -130,8 +148,8 @@ namespace ProNav.GameObjects
 
             if (_curRotTime >= _nextRotTime)
             {
-                _targRot = _rnd.NextFloat(-MIN_MAX_ROT, MIN_MAX_ROT);
-                _nextRotTime = _rnd.NextFloat(_minTime, _maxTime);
+                _targRot = RandOFloat(MIN_MAX_ROT);
+                _nextRotTime = RandOFloat(_minTime, _maxTime);
                 _curRotTime = 0f;
                 _prevRotTarg = this.RotationSpeed;
             }
@@ -142,8 +160,8 @@ namespace ProNav.GameObjects
 
             if (_curVeloTime >= _nextVeloTime)
             {
-                _targVelo = new D2DPoint(_rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO), _rnd.NextFloat(-MIN_MAX_VELO, MIN_MAX_VELO));
-                _nextVeloTime = _rnd.NextFloat(_minTime, _maxTime);
+                _targVelo = RandOPoint(MIN_MAX_VELO);
+                _nextVeloTime = RandOFloat(_minTime, _maxTime);
                 _curVeloTime = 0f;
                 _prevVeloTarg = this.Velocity;
             }

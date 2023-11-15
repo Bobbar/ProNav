@@ -1,4 +1,5 @@
-﻿using unvell.D2DLib;
+﻿using System.Diagnostics;
+using unvell.D2DLib;
 
 namespace ProNav.GameObjects
 {
@@ -42,6 +43,8 @@ namespace ProNav.GameObjects
         private D2DPoint _stableAimPoint = D2DPoint.Zero;
         private D2DPoint _finalAimPoint = D2DPoint.Zero;
         private D2DPoint _impactPnt = D2DPoint.Zero;
+        private SmoothFloat _impactPntDeltaSmooth = new SmoothFloat(10);
+        private SmoothPos _aimDirSmooth = new SmoothPos(10);
 
         private float _prevVelo = 0f;
         private float _prevTargetDist = 0f;
@@ -243,7 +246,7 @@ namespace ProNav.GameObjects
                     break;
 
                 case GuidanceType.BasicLOS:
-                    fillColor = D2DColor.LightBlue;
+                    fillColor = D2DColor.Red;
                     break;
 
                 case GuidanceType.SimplePN:
@@ -262,6 +265,9 @@ namespace ProNav.GameObjects
             {
                 _tailWing.Render(gfx);
                 _noseWing.Render(gfx);
+
+                //var totLift = _tailWing.LiftVector + _noseWing.LiftVector + _rocketBody.LiftVector;
+                //gfx.DrawLine(this.Position, this.Position + (totLift * 1.4f), D2DColor.SkyBlue, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
             }
 
             _rocketBody.Render(gfx);
@@ -272,6 +278,9 @@ namespace ProNav.GameObjects
                 gfx.FillEllipse(new D2DEllipse(_stableAimPoint, new D2DSize(4f, 4f)), D2DColor.Blue);
                 gfx.FillEllipse(new D2DEllipse(_impactPnt, new D2DSize(3f, 3f)), D2DColor.Red);
             }
+
+            //gfx.DrawLine(this.Position, this.Position + this.Velocity, D2DColor.Green);
+
         }
 
         private D2DPoint LiftDragForce(Wing wing)
@@ -279,7 +288,7 @@ namespace ProNav.GameObjects
             if (wing.Velocity.Length() == 0f)
                 return D2DPoint.Zero;
 
-            var velo = this.Velocity + wing.Velocity;
+            var velo = (this.Velocity + wing.Velocity) - World.Wind;
             var veloMag = velo.Length();
             var veloMagSq = (float)Math.Pow(veloMag, 2f);
 
@@ -300,7 +309,7 @@ namespace ProNav.GameObjects
             float WING_AREA = wing.Area; // Area of the wing. Effects lift & drag forces.
             const float MAX_LIFT = 20000f;//31000f; // Max lift force allowed.
             const float MAX_AOA = 40f; // Max AoA allowed before lift force reduces. (Stall)
-            const float AIR_DENSITY = 1.225f;
+            float AIR_DENSITY = World.AirDensity;
             const float PARASITIC_DRAG = 0.5f;
 
             // Drag force.
@@ -528,14 +537,18 @@ namespace ProNav.GameObjects
             // Compute the speed (delta) of the impact point as it is refined.
             // Slower sleep = higher confidence.
             var impactPntDelta = D2DPoint.Distance(_prevImpactPnt, impactPnt);
+            impactPntDelta = _impactPntDeltaSmooth.Add(impactPntDelta);
             _prevImpactPnt = impactPnt;
 
             // Only update the stable aim point when the predicted impact point is moving slowly.
             // If it begins to move quickly (when the target changes velo/direction) we keep targeting the previous point until it slows down again.
             var impactDeltaFact = Helpers.Factor(IMPACT_POINT_DELTA_THRESH, impactPntDelta);
             _stableAimPoint = D2DPoint.Lerp(_stableAimPoint, impactPnt, impactDeltaFact); // Blue
-            var aimDirection = D2DPoint.Normalize(_stableAimPoint - this.Position);
-            _finalAimPoint = _stableAimPoint;
+
+            var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
+            var aimDirection = D2DPoint.Lerp(D2DPoint.Normalize(target - this.Position), D2DPoint.Normalize(_stableAimPoint - this.Position), closeRateFact);
+            aimDirection = _aimDirSmooth.Add(aimDirection);
+            _finalAimPoint = D2DPoint.Lerp(target, _stableAimPoint, closeRateFact); // Green
 
             // Compute velo norm & tangent.
             var veloNorm = D2DPoint.Normalize(this.Velocity);

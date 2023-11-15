@@ -9,7 +9,7 @@ namespace ProNav.GameObjects
 
         private float _currentRadius = 0f;
         private float _age = 0f;
-        private D2DColor _color = new D2DColor(0.4f, D2DColor.Orange);
+        private D2DColor _color = new D2DColor(0.2f, D2DColor.Orange);
 
         public Explosion(D2DPoint pos, float maxRadius, float duration) : base(pos) 
         { 

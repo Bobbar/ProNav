@@ -31,15 +31,15 @@ namespace ProNav.GameObjects
         private float _deflection = 0f;
         private Missile _missle;
 
-        public Wing(Missile missle, float renderLen, float area, D2DPoint position)
+        public Wing(Missile missile, float renderLen, float area, D2DPoint position)
         {
             RenderLength = renderLen;
             Area = area;
             Position = position;
             ReferencePosition = position;
-            Rotation = missle.Rotation;
+            Rotation = missile.Rotation;
             this.Velocity = D2DPoint.Zero;
-            _missle = missle;
+            _missle = missile;
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
@@ -67,19 +67,22 @@ namespace ProNav.GameObjects
 
         public override void Render(D2DGraphics gfx)
         {
+            // Draw a fixed box behind the moving wing. Helps to visualize deflection.
             var startB = this.Position - Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;
             var endB = this.Position + Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;
             gfx.DrawLine(startB, endB, D2DColor.DarkGray, 2f);
 
-            if (World.ShowAero)
-            {
-                gfx.DrawLine(this.Position, this.Position + (LiftVector * 0.05f), D2DColor.SkyBlue, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
-                gfx.DrawLine(this.Position, this.Position + (DragVector * 0.08f), D2DColor.Red, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
-            }
-
+            // Draw wing.
             var start = this.Position - Helpers.AngleToVectorDegrees(this.Rotation) * RenderLength;
             var end = this.Position + Helpers.AngleToVectorDegrees(this.Rotation) * RenderLength;
             gfx.DrawLine(start, end, D2DColor.Blue, 1f, D2DDashStyle.Solid, D2DCapStyle.Round, D2DCapStyle.Round);
+
+            if (World.ShowAero)
+            {
+                const float SCALE = 0.04f;
+                gfx.DrawLine(this.Position, this.Position + (LiftVector * SCALE), D2DColor.SkyBlue, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
+                gfx.DrawLine(this.Position, this.Position + (DragVector * SCALE), D2DColor.Red, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
+            }
 
         }
 

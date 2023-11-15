@@ -150,6 +150,8 @@ namespace ProNav
                             DoCollisionsGrid();
                         else
                             DoCollisions();
+
+                        World.UpdateAirDensityAndWind(World.DT);
                     }
 
                     _oneStep = false;
@@ -619,6 +621,9 @@ namespace ProNav
         {
             DrawInfo(gfx, _infoPosition);
 
+            if (World.EnableTurbulence || World.EnableWind)
+                DrawWindAndTurbulenceOverlay(gfx);
+
             //DrawGrid(gfx);
         }
 
@@ -627,7 +632,7 @@ namespace ProNav
             var scale = 8f * World.ViewPortScaleMulti;
 
             var zAmt = World.ZoomScale;
-            var pos = new D2DPoint(World.ViewPortSize.width * 0.5f * zAmt, World.ViewPortSize.height * 0.15f * zAmt);
+            var pos = new D2DPoint(World.ViewPortSize.width * 0.5f * zAmt, World.ViewPortSize.height * 0.25f * zAmt);
 
             for (int m = 0; m < _missiles.Count; m++)
             {
@@ -651,11 +656,22 @@ namespace ProNav
             }
         }
 
+        private void DrawWindAndTurbulenceOverlay(D2DGraphics gfx)
+        {
+            var pos = new D2DPoint(this.Width - 100f, 100f);
+
+            gfx.FillEllipse(new D2DEllipse(pos, new D2DSize(World.AirDensity * 10f, World.AirDensity * 10f)), D2DColor.SkyBlue);
+
+            gfx.DrawLine(pos, pos + (World.Wind * 2f), D2DColor.White, 2f);
+        }
+
         private void DrawInfo(D2DGraphics gfx, D2DPoint pos)
         {
             string infoText = string.Empty;
+            infoText += $"Paused: {_isPaused}\n";
+            infoText += $"Overlay (Tracking/Aero/Missile): {(World.ShowTracking ? "On" : "Off")}/{(World.ShowAero ? "On" : "Off")}/{(World.ShowMissileCloseup ? "On" : "Off")} \n";
+            infoText += $"Turbulence/Wind: {(World.EnableTurbulence ? "On" : "Off")}/{(World.EnableWind ? "On" : "Off")}\n";
             infoText += $"Guidance Type: {_guidanceType.ToString()}\n";
-
             infoText += $"Missile Type: {(_useControlSurfaces ? "Control Surfaces" : "Direct Rotation")}\n";
             infoText += $"Target Type: {_targetTypes.ToString()}\n";
 
@@ -665,10 +681,14 @@ namespace ProNav
             infoText += $"FPS: {Math.Round(_renderFPS, 0)}\n";
             infoText += $"Zoom: {Math.Round(World.ZoomScale, 2)}\n";
             infoText += $"DT: {Math.Round(World.DT, 4)}\n";
+            infoText += $"Trails: {(_trailsOn ? "Trails" : _motionBlur ? "Blur" : "Off")}\n";
+
 
             if (_showHelp)
             {
                 infoText += $@"
+H: Hide help
+
 P: Pause
 B: Motion Blur
 T: Trails
@@ -682,13 +702,15 @@ O: Toggle Missile View
 U: Toggle Guidance Tracking Dots
 S: Toggle Missile Type
 Y: Cycle Target Types
+K: Toggle Turbulence
+L: Toggle Wind
 +/-: Zoom
 Shift + (+/-): Change Delta Time
 S: Missile Type
 Shift + Mouse-Wheel or E: Guidance Type
 Left-Click: Thrust ship
 Right-Click: Fire auto cannon
-Middle-Click: Fire missle
+Middle-Click or Enter: Fire missile
 Mouse-Wheel: Rotate ship";
             }
             else
@@ -737,9 +759,20 @@ Mouse-Wheel: Rotate ship";
                     next = (next + 1) % len;
                     _guidanceType = (GuidanceType)next;
                     break;
+                case 'h':
+                    _showHelp = !_showHelp;
+                    break;
 
                 case 'i':
                     World.ShowAero = !World.ShowAero;
+                    break;
+
+                case 'k':
+                    World.EnableTurbulence = !World.EnableTurbulence;
+                    break;
+
+                case 'l':
+                    World.EnableWind = !World.EnableWind;
                     break;
 
                 case 'm':
@@ -808,6 +841,7 @@ Mouse-Wheel: Rotate ship";
                         ResizeGfx();
                     }
                     break;
+
             }
         }
 
@@ -901,15 +935,13 @@ Mouse-Wheel: Rotate ship";
         {
             _shiftDown = e.Shift;
 
-            _showHelp = e.KeyCode == Keys.H;
+            if (e.KeyCode == Keys.Enter)
+                TargetAllWithMissile();
         }
 
         private void Form1_KeyUp(object sender, KeyEventArgs e)
         {
             _shiftDown = e.Shift;
-
-            if (_showHelp && e.KeyCode == Keys.H)
-                _showHelp = false;
         }
     }
 }

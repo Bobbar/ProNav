@@ -28,7 +28,8 @@ I included 3 simple PN guidance solutions based on other examples, and one "Adva
 ![2023-11-07 16_16_22-Window](https://github.com/Bobbar/ProNav/assets/2649098/bc197d5e-9b3b-4497-972b-bcd213ee6986)
 ### Missle overlay/close-up view (With aero and control surfaces shown)
 ![2023-11-07 16_17_52-Window](https://github.com/Bobbar/ProNav/assets/2649098/cb198644-c96e-4836-96fb-f38efc1c013d)
-
+### Flight paths of the various guidance solutions targeting an erratic target. Note the flatness of the advanced solution.
+![2023-11-15 10_44_42-Window](https://github.com/Bobbar/ProNav/assets/2649098/16326b21-01b8-42e1-b85d-a26e1d564e7e)
 
 
 https://github.com/Bobbar/ProNav/assets/2649098/85b57087-7ea8-466c-982d-ecc994ac8e94

@@ -25,6 +25,11 @@ namespace ProNav
             return new D2DPoint(point.X - other.X, point.Y - other.Y);
         }
 
+        public static D2DPoint Subtract(this D2DPoint point, float value)
+        {
+            return new D2DPoint(point.X - value, point.Y - value);
+        }
+
         public static float NextFloat(this Random rnd, float min, float max)
         {
             return (float)rnd.NextDouble() * (max - min) + min;

@@ -9,6 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="GameObjects\NewFolder\**" />
+    <EmbeddedResource Remove="GameObjects\NewFolder\**" />
+    <None Remove="GameObjects\NewFolder\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="d2dlibexport">
       <HintPath>d2dlibexport.dll</HintPath>
     </Reference>

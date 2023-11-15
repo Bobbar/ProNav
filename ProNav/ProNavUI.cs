@@ -668,12 +668,12 @@ namespace ProNav
         private void DrawInfo(D2DGraphics gfx, D2DPoint pos)
         {
             string infoText = string.Empty;
-            infoText += $"Paused: {_isPaused}\n";
-            infoText += $"Overlay (Tracking/Aero/Missile): {(World.ShowTracking ? "On" : "Off")}/{(World.ShowAero ? "On" : "Off")}/{(World.ShowMissileCloseup ? "On" : "Off")} \n";
-            infoText += $"Turbulence/Wind: {(World.EnableTurbulence ? "On" : "Off")}/{(World.EnableWind ? "On" : "Off")}\n";
+            infoText += $"Paused: {_isPaused}\n\n";
             infoText += $"Guidance Type: {_guidanceType.ToString()}\n";
             infoText += $"Missile Type: {(_useControlSurfaces ? "Control Surfaces" : "Direct Rotation")}\n";
-            infoText += $"Target Type: {_targetTypes.ToString()}\n";
+            infoText += $"Target Type: {_targetTypes.ToString()}\n\n";
+            infoText += $"Overlay (Tracking/Aero/Missile): {(World.ShowTracking ? "On" : "Off")}/{(World.ShowAero ? "On" : "Off")}/{(World.ShowMissileCloseup ? "On" : "Off")} \n";
+            infoText += $"Turbulence/Wind: {(World.EnableTurbulence ? "On" : "Off")}/{(World.EnableWind ? "On" : "Off")}\n";
 
             var numObj = _missiles.Count + _targets.Count + _bullets.Count;
             infoText += $"Num Objects: {numObj}\n";

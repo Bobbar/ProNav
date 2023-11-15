@@ -60,9 +60,7 @@ namespace ProNav.GameObjects.Guidance
             }
             _prevTargPos = target;
 
-            // Closing rate and number of frames until impact.
             var targDist = D2DPoint.Distance(this.Missile.Position, target);
-            _prevTargetDist = targDist;
 
             // Set initial impact point directly on the target.
             var impactPnt = target;
@@ -95,6 +93,7 @@ namespace ProNav.GameObjects.Guidance
             // Compute closing rate and lerp between the target and predicted locations.
             // We gradually incorporate the predicted location as closing rate increases.
             var closingRate = _prevTargetDist - targDist;
+            _prevTargetDist = targDist;
             var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
             var aimDirection = D2DPoint.Lerp(D2DPoint.Normalize(target - this.Missile.Position), D2DPoint.Normalize(StableAimPoint - this.Missile.Position), closeRateFact);
             aimDirection = _aimDirSmooth.Add(aimDirection);

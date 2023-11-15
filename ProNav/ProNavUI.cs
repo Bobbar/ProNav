@@ -468,18 +468,30 @@ namespace ProNav
             _targets.Add(targ);
         }
 
-        private void TargetAllWithMissile()
+        private void TargetAllWithMissile(bool testAllTypes = false)
         {
             for (int i = 0; i < _targets.Count; i++)
             {
                 var targ = _targets[i];
-                var missile = new GuidedMissile(_player, targ as Target, _guidanceType, _useControlSurfaces);
 
-                _missiles.Add(missile);
-                _colGrid.Add(missile);
+                if (testAllTypes)
+                {
+                    var missile = new GuidedMissile(_player, targ as Target, _guidanceType, _useControlSurfaces);
+
+                    _missiles.Add(missile);
+                    _colGrid.Add(missile);
+                }
+                else
+                {
+                    var types = Enum.GetValues(typeof(GuidanceType)).Cast<GuidanceType>();
+                    foreach (var type in types)
+                    {
+                        var missile = new GuidedMissile(_player, targ as Target, type, _useControlSurfaces);
+                        _missiles.Add(missile);
+                        _colGrid.Add(missile);
+                    }
+                }
             }
-
-            //Debug.WriteLine("----");
         }
 
         private void TargetAllWithBullet()
@@ -710,7 +722,7 @@ S: Missile Type
 Shift + Mouse-Wheel or E: Guidance Type
 Left-Click: Thrust ship
 Right-Click: Fire auto cannon
-Middle-Click or Enter: Fire missile
+Middle-Click or Enter: Fire missile (Hold Shift to fire all types)
 Mouse-Wheel: Rotate ship";
             }
             else
@@ -882,7 +894,7 @@ Mouse-Wheel: Rotate ship";
                     break;
 
                 case MouseButtons.Middle:
-                    TargetAllWithMissile();
+                    TargetAllWithMissile(!_shiftDown);
                     //TargetAllWithBullet();
                     break;
 
@@ -936,7 +948,7 @@ Mouse-Wheel: Rotate ship";
             _shiftDown = e.Shift;
 
             if (e.KeyCode == Keys.Enter)
-                TargetAllWithMissile();
+                TargetAllWithMissile(!_shiftDown);
         }
 
         private void Form1_KeyUp(object sender, KeyEventArgs e)

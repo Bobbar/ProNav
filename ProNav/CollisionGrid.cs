@@ -48,6 +48,27 @@ namespace ProNav
             }
         }
 
+        public void Add(List<GameObject> objs)
+        {
+            lock (_grid)
+            {
+                foreach (var  obj in objs)
+                {
+                    EnsureCapacity(obj.Position);
+
+                    var idx = CellIdx(OffsetPos(obj.Position));
+
+                    if (idx < 0)
+                        return;
+
+                    if (_grid[idx] == null)
+                        _grid[idx] = NewList(obj);
+                    else
+                        _grid[idx].Add(obj);
+                }
+            }
+        }
+
         public void Clear()
         {
             foreach (var idx in _usedCells)

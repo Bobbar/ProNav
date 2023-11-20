@@ -36,7 +36,7 @@ namespace ProNav.GameObjects
         };
 
         private RenderPoly FlamePoly;
-        private float _renderOffset = 1.5f;//4f;
+        private float _renderOffset = 2f;
         public Action<Bullet> FireBulletCallback { get; set; }
 
         public Ship() : base(_shipPoly)

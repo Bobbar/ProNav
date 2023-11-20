@@ -5,7 +5,6 @@ namespace ProNav.GameObjects
 {
     public class Wing : GameObject
     {
-        private readonly float MAX_DEFLECTION = 40f;
         private readonly float MAX_VELO = 300f;
        
         public float RenderLength { get; set; }
@@ -15,10 +14,10 @@ namespace ProNav.GameObjects
             get { return _deflection; }
             set
             {
-                if (value >= -MAX_DEFLECTION && value <= MAX_DEFLECTION)
+                if (value >= -_maxDeflection && value <= _maxDeflection)
                     _deflection = value;
                 else
-                    _deflection = Math.Sign(value) * MAX_DEFLECTION;
+                    _deflection = Math.Sign(value) * _maxDeflection;
             }
         } 
 
@@ -30,8 +29,9 @@ namespace ProNav.GameObjects
         private D2DPoint _prevPosition;
         private float _deflection = 0f;
         private Missile _missle;
+		private float _maxDeflection = 40f;
 
-        public Wing(Missile missile, float renderLen, float area, D2DPoint position)
+		public Wing(Missile missile, float renderLen, float area, D2DPoint position)
         {
             RenderLength = renderLen;
             Area = area;
@@ -42,7 +42,19 @@ namespace ProNav.GameObjects
             _missle = missile;
         }
 
-        public override void Update(float dt, D2DSize viewport, float renderScale)
+		public Wing(Missile missile, float renderLen, float area, float maxDeflection, D2DPoint position)
+		{
+			RenderLength = renderLen;
+			Area = area;
+			Position = position;
+			ReferencePosition = position;
+			Rotation = missile.Rotation;
+            _maxDeflection = maxDeflection;
+			this.Velocity = D2DPoint.Zero;
+			_missle = missile;
+		}
+
+		public override void Update(float dt, D2DSize viewport, float renderScale)
         {
             this.Rotation = _missle.Rotation + this.Deflection;
             this.Position = ApplyTranslation(this.ReferencePosition, _missle.Rotation, _missle.Position, renderScale);

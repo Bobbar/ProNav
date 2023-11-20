@@ -118,7 +118,6 @@ namespace ProNav.GameObjects
     {
         public RenderPoly Polygon = new RenderPoly();
 
-
         public GameObjectPoly()
         {
         }
@@ -212,6 +211,27 @@ namespace ProNav.GameObjects
 
             return new D2DPoint((float)centroid[0], (float)centroid[1]);
         }
+
+        public float GetInertia(RenderPoly poly, float mass)
+        {
+            var sum1 = 0f;
+            var sum2 = 0f;
+            var n = poly.SourcePoly.Length;
+
+			for (int i = 0; i < n; i++)
+			{
+				var v1 = poly.SourcePoly[i];
+				var v2 = poly.SourcePoly[(i + 1) % n];
+				var a = Helpers.Cross(v2, v1);
+				var b = D2DPoint.Dot(v1, v1) + D2DPoint.Dot(v1, v2) + D2DPoint.Dot(v2, v2);
+
+				sum1 += a * b;
+				sum2 += a;
+			}
+
+			return (mass * sum1) / (6.0f * sum2);
+		}
+
 
         public static D2DPoint[] RandomPoly(int nPoints, int radius)
         {

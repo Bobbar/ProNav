@@ -16,8 +16,6 @@ namespace ProNav.GameObjects.Guidance
 
         private D2DPoint _prevTargPos = D2DPoint.Zero;
         private D2DPoint _prevImpactPnt = D2DPoint.Zero;
-        private SmoothFloat _impactPntDeltaSmooth = new SmoothFloat(10);
-        private SmoothPos _aimDirSmooth = new SmoothPos(10);
 
         private float _prevVelo = 0f;
         private float _prevTargetDist = 0f;
@@ -37,7 +35,7 @@ namespace ProNav.GameObjects.Guidance
             const float MAX_ROT_RATE = 1.5f; // Max rotation rate.
             const float MIN_ROT_RATE = 1.0f; // Min rotation rate.
             const float MIN_ROT_SPEED = 600f; // Speed at which rotation rate will be the smallest.
-            const float ARM_DIST = 600f; // How far we must travel before engaging the target.
+            const float ARM_DIST = 400f; // How far we must travel before engaging the target.
             const float MISS_TARG_DIST = 300f; // Distance to target to be considered a miss.
             const float REENGAGE_DIST = 2500f; // How far we must be from the target before re-engaging after a miss.
             const float ROT_MOD_DIST = 1000f; // Distance to begin increasing rotation rate. (Get more aggro the closer we get)
@@ -82,7 +80,6 @@ namespace ProNav.GameObjects.Guidance
             // Compute the speed (delta) of the impact point as it is refined.
             // Slower sleep = higher confidence.
             var impactPntDelta = D2DPoint.Distance(_prevImpactPnt, impactPnt);
-            impactPntDelta = _impactPntDeltaSmooth.Add(impactPntDelta);
             _prevImpactPnt = impactPnt;
 
             // Only update the stable aim point when the predicted impact point is moving slowly.
@@ -96,7 +93,6 @@ namespace ProNav.GameObjects.Guidance
             _prevTargetDist = targDist;
             var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
             var aimDirection = D2DPoint.Lerp(D2DPoint.Normalize(target - this.Missile.Position), D2DPoint.Normalize(StableAimPoint - this.Missile.Position), closeRateFact);
-            aimDirection = _aimDirSmooth.Add(aimDirection);
             CurrentAimPoint = D2DPoint.Lerp(target, StableAimPoint, closeRateFact); // Green
 
             // Compute velo norm, tangent & rotations.

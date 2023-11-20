@@ -37,7 +37,9 @@ namespace ProNav.GameObjects
 
 
         public static D2DSize ViewPortSize { get; set; }
-        public static D2DRect ViewPortRect { get; set; }
+		public static D2DSize ViewPortBaseSize { get; set; }
+
+		public static D2DRect ViewPortRect { get; set; }
 
         public static float ViewPortScaleMulti
         {
@@ -55,7 +57,7 @@ namespace ProNav.GameObjects
         public static bool EnableWind = false;
         public static bool EnableTurbulence = false;
 
-        private static float _zoomScale = 0.4f;
+        private static float _zoomScale = 0.35f;
         private static float _dt = 0.06f;
 
 
@@ -71,7 +73,8 @@ namespace ProNav.GameObjects
 
         public static void UpdateViewport(Size viewPortSize)
         {
-            ViewPortSize = new D2DSize(viewPortSize.Width * ViewPortScaleMulti, viewPortSize.Height * ViewPortScaleMulti);
+			ViewPortBaseSize = new D2DSize(viewPortSize.Width, viewPortSize.Height);
+			ViewPortSize = new D2DSize(viewPortSize.Width * ViewPortScaleMulti, viewPortSize.Height * ViewPortScaleMulti);
             ViewPortRect = new D2DRect(0, 0, viewPortSize.Width * ViewPortScaleMulti, viewPortSize.Height * ViewPortScaleMulti);
         }
 

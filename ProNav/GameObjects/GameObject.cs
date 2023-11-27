@@ -114,7 +114,7 @@ namespace ProNav.GameObjects
     }
 
 
-    public class GameObjectPoly: GameObject
+    public class GameObjectPoly : GameObject
     {
         public RenderPoly Polygon = new RenderPoly();
 
@@ -158,22 +158,69 @@ namespace ProNav.GameObjects
 
         public virtual bool Contains(GameObjectPoly obj)
         {
+            var poly1 = obj.Polygon.Poly;
+
+            // First do velocity compensation collisions.
+            // Extend line segments from the current position to the next position and check for intersections.
+            for (int i = 0; i < poly1.Length; i++)
+            {
+                var pnt1 = poly1[i];
+                var pnt2 = pnt1 + (obj.Velocity * World.SUB_DT);
+                if (PolyIntersect(pnt1, pnt2, this.Polygon.Poly))
+                    return true;
+            }
+
+            // Same as above but for the central point.
+            if (PolyIntersect(obj.Position, obj.Position + (obj.Velocity * World.SUB_DT), this.Polygon.Poly))
+                return true;
+
+            // Plain old point-in-poly collisions.
             // Check for center point first.
-            if (Contains(obj.Position)) 
+            if (Contains(obj.Position))
                 return true;
 
             // Check all other poly points.
             foreach (var pnt in obj.Polygon.Poly)
             {
-                int i, j = 0;
-                bool c = false;
-                for (i = 0, j = Polygon.Poly.Length - 1; i < Polygon.Poly.Length; j = i++)
-                {
-                    if (((Polygon.Poly[i].Y > pnt.Y) != (Polygon.Poly[j].Y > pnt.Y)) && (pnt.X < (Polygon.Poly[j].X - Polygon.Poly[i].X) * (pnt.Y - Polygon.Poly[i].Y) / (Polygon.Poly[j].Y - Polygon.Poly[i].Y) + Polygon.Poly[i].X))
-                        c = !c;
-                }
+                if (PointInPoly(pnt, this.Polygon.Poly))
+                    return true;
+            }
 
-                if (c)
+            // Reverse of above. Just in case...
+            foreach (var pnt in Polygon.Poly)
+            {
+                if (PointInPoly(pnt, obj.Polygon.Poly))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private bool LinesIntersect(D2DPoint a1, D2DPoint a2, D2DPoint b1, D2DPoint b2)
+        {
+            var s1 = a2 - a1;
+            var s2 = b2 - b1;
+
+            var s = (-s1.Y * (a1.X - b1.X) + s1.X * (a1.Y - b1.Y)) / (-s2.X * s1.Y + s1.X * s2.Y);
+            var t = (s2.X * (a1.Y - b1.Y) - s2.Y * (a1.X - b1.X)) / (-s2.X * s1.Y + s1.X * s2.Y);
+
+            if (s >= 0f && s <= 1f && t >= 0f && t <= 1f)
+            {
+                return true;
+            }
+
+            return false; // No collision
+        }
+
+        private bool PolyIntersect(D2DPoint a, D2DPoint b, D2DPoint[] poly)
+        {
+            // Check the segment against every segment in the polygon.
+            for (int i = 0; i < poly.Length - 1; i++)
+            {
+                var pnt1 = poly[i];
+                var pnt2 = poly[i + 1];
+
+                if (LinesIntersect(a, b, pnt1, pnt2))
                     return true;
             }
 
@@ -182,11 +229,16 @@ namespace ProNav.GameObjects
 
         public virtual bool Contains(D2DPoint pnt)
         {
+            return PointInPoly(pnt, this.Polygon.Poly);
+        }
+
+        private bool PointInPoly(D2DPoint pnt, D2DPoint[] poly)
+        {
             int i, j = 0;
             bool c = false;
-            for (i = 0, j = Polygon.Poly.Length - 1; i < Polygon.Poly.Length; j = i++)
+            for (i = 0, j = poly.Length - 1; i < poly.Length; j = i++)
             {
-                if (((Polygon.Poly[i].Y > pnt.Y) != (Polygon.Poly[j].Y > pnt.Y)) && (pnt.X < (Polygon.Poly[j].X - Polygon.Poly[i].X) * (pnt.Y - Polygon.Poly[i].Y) / (Polygon.Poly[j].Y - Polygon.Poly[i].Y) + Polygon.Poly[i].X))
+                if (((poly[i].Y > pnt.Y) != (poly[j].Y > pnt.Y)) && (pnt.X < (poly[j].X - poly[i].X) * (pnt.Y - poly[i].Y) / (poly[j].Y - poly[i].Y) + poly[i].X))
                     c = !c;
             }
 
@@ -195,21 +247,16 @@ namespace ProNav.GameObjects
 
         public D2DPoint CenterOfPolygon()
         {
-            double[] centroid = new double[2];
+            var centroid = D2DPoint.Zero;
 
             // List iteration
             // Link reference:
             // https://en.wikipedia.org/wiki/Centroid
             foreach (var point in this.Polygon.Poly)
-            {
-                centroid[0] += point[0];
-                centroid[1] += point[1];
-            }
+                centroid += point;
 
-            centroid[0] /= this.Polygon.Poly.Length;
-            centroid[1] /= this.Polygon.Poly.Length;
-
-            return new D2DPoint((float)centroid[0], (float)centroid[1]);
+            centroid /= this.Polygon.Poly.Length;
+            return centroid;
         }
 
         public float GetInertia(RenderPoly poly, float mass)
@@ -218,19 +265,19 @@ namespace ProNav.GameObjects
             var sum2 = 0f;
             var n = poly.SourcePoly.Length;
 
-			for (int i = 0; i < n; i++)
-			{
-				var v1 = poly.SourcePoly[i];
-				var v2 = poly.SourcePoly[(i + 1) % n];
-				var a = Helpers.Cross(v2, v1);
-				var b = D2DPoint.Dot(v1, v1) + D2DPoint.Dot(v1, v2) + D2DPoint.Dot(v2, v2);
+            for (int i = 0; i < n; i++)
+            {
+                var v1 = poly.SourcePoly[i];
+                var v2 = poly.SourcePoly[(i + 1) % n];
+                var a = Helpers.Cross(v2, v1);
+                var b = D2DPoint.Dot(v1, v1) + D2DPoint.Dot(v1, v2) + D2DPoint.Dot(v2, v2);
 
-				sum1 += a * b;
-				sum2 += a;
-			}
+                sum1 += a * b;
+                sum2 += a;
+            }
 
-			return (mass * sum1) / (6.0f * sum2);
-		}
+            return (mass * sum1) / (6.0f * sum2);
+        }
 
 
         public static D2DPoint[] RandomPoly(int nPoints, int radius)

@@ -6,15 +6,15 @@ namespace ProNav.GameObjects
     {
         public float Speed = 600f;
         public float Lifetime = 30f;
-        
+
         private float _age = 0;
 
         public Bullet() : base() { }
 
         public Bullet(D2DPoint pos) : base(pos) { }
 
-        public Bullet(D2DPoint pos, float rotation) : base(pos, rotation) 
-        { 
+        public Bullet(D2DPoint pos, float rotation) : base(pos, rotation)
+        {
             this.Velocity = AngleToVector(rotation) * this.Speed;
         }
 
@@ -29,7 +29,7 @@ namespace ProNav.GameObjects
 
             _age += dt;
 
-            if (_age >= Lifetime) 
+            if (_age >= Lifetime)
                 this.IsExpired = true;
         }
 
@@ -52,7 +52,7 @@ namespace ProNav.GameObjects
 
         public override void Render(D2DGraphics gfx)
         {
-            gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(5,5)), D2DColor.Red);
+            gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(5, 5)), D2DColor.Red);
         }
     }
 

@@ -1,29 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ProNav.GameObjects.Guidance
+﻿namespace ProNav.GameObjects.Guidance
 {
     public class AdvancedGuidance : IGuidance
     {
         public D2DPoint ImpactPoint { get; set; }
         public D2DPoint StableAimPoint { get; set; }
         public D2DPoint CurrentAimPoint { get; set; }
-        public GuidedMissile Missile {  get; set; }
+        public Missile Missile { get; set; }
+
         public Target Target { get; set; }
 
         private D2DPoint _prevTargPos = D2DPoint.Zero;
         private D2DPoint _prevImpactPnt = D2DPoint.Zero;
 
+        private SmoothFloat _impactPntDeltaSmooth = new SmoothFloat(5);
+        private SmoothPos _aimDirSmooth = new SmoothPos(5);
+
         private float _prevVelo = 0f;
         private float _prevTargetDist = 0f;
-        private double _prevTargVeloAngle = 0f;
+        private float _prevTargVeloAngle = 0f;
         private bool _missedTarget = false;
         private float _reEngageMod = 0f;
 
-        public AdvancedGuidance(GuidedMissile missile, Target target)
+        public AdvancedGuidance(Missile missile, Target target)
         {
             Missile = missile;
             Target = target;
@@ -67,7 +65,7 @@ namespace ProNav.GameObjects.Guidance
             // Where will the target be when we arrive?
             if (Missile.DistTraveled > 0)
             {
-                var tarVeloAngle = targetVelo.AngleD();
+                var tarVeloAngle = targetVelo.Angle();
                 var targAngleDelta = tarVeloAngle - _prevTargVeloAngle;
                 _prevTargVeloAngle = tarVeloAngle;
 
@@ -80,6 +78,7 @@ namespace ProNav.GameObjects.Guidance
             // Compute the speed (delta) of the impact point as it is refined.
             // Slower sleep = higher confidence.
             var impactPntDelta = D2DPoint.Distance(_prevImpactPnt, impactPnt);
+            impactPntDelta = _impactPntDeltaSmooth.Add(impactPntDelta);
             _prevImpactPnt = impactPnt;
 
             // Only update the stable aim point when the predicted impact point is moving slowly.
@@ -93,6 +92,7 @@ namespace ProNav.GameObjects.Guidance
             _prevTargetDist = targDist;
             var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
             var aimDirection = D2DPoint.Lerp(D2DPoint.Normalize(target - this.Missile.Position), D2DPoint.Normalize(StableAimPoint - this.Missile.Position), closeRateFact);
+            aimDirection = _aimDirSmooth.Add(aimDirection);
             CurrentAimPoint = D2DPoint.Lerp(target, StableAimPoint, closeRateFact); // Green
 
             // Compute velo norm, tangent & rotations.
@@ -146,14 +146,14 @@ namespace ProNav.GameObjects.Guidance
             return veloAngle + (nextRot * rotAuthority);
         }
 
-        private double ImpactTime(float dist, float velo, float accel)
+        private float ImpactTime(float dist, float velo, float accel)
         {
-            var finalVelo = Math.Sqrt((Math.Pow(velo, 2f) + 2f * accel * dist));
+            var finalVelo = (float)Math.Sqrt((Math.Pow(velo, 2f) + 2f * accel * dist));
 
             return (finalVelo - velo) / accel;
         }
 
-        private D2DPoint RefineImpact(D2DPoint targetPos, D2DPoint targetVelo, double targAngleDelta, double timeToImpact, float dt)
+        private D2DPoint RefineImpact(D2DPoint targetPos, D2DPoint targetVelo, float targAngleDelta, float timeToImpact, float dt)
         {
             // To obtain a high order target position we basically run a small simulation here.
             // This considers the target velocity as well as the change in angular velocity.
@@ -164,22 +164,22 @@ namespace ProNav.GameObjects.Guidance
             if (timeToImpact >= 1 && timeToImpact < MAX_FTI)
             {
                 var targLoc = targetPos;
-                var angle = targetVelo.AngleD();
+                var angle = targetVelo.Angle();
 
                 // Advance the target position and velocity angle.
                 for (int i = 0; i <= timeToImpact; i++)
                 {
-                    var avec = Helpers.AngleToVectorDegreesD(angle) * targetVelo.Length();
+                    var avec = Helpers.AngleToVectorDegrees(angle) * targetVelo.Length();
                     targLoc += avec;
                     angle += targAngleDelta;
-                    angle = Helpers.ClampAngleD(angle);
+                    angle = Helpers.ClampAngle(angle);
                 }
 
                 // Include the remainder after the loop.
                 var rem = timeToImpact % (int)timeToImpact;
                 angle += targAngleDelta * rem;
-                angle = Helpers.ClampAngleD(angle);
-                targLoc += (Helpers.AngleToVectorDegreesD(angle) * targetVelo.Length()) * (float)rem;
+                angle = Helpers.ClampAngle(angle);
+                targLoc += (Helpers.AngleToVectorDegrees(angle) * targetVelo.Length()) * rem;
 
                 predicted = targLoc;
             }

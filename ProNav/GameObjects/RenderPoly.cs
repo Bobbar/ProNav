@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Numerics;
 
 namespace ProNav.GameObjects
 {
@@ -18,7 +13,7 @@ namespace ProNav.GameObjects
             SourcePoly = new D2DPoint[0];
         }
 
-        public RenderPoly(D2DPoint[] polygon) 
+        public RenderPoly(D2DPoint[] polygon)
         {
             Poly = new D2DPoint[polygon.Length];
             SourcePoly = new D2DPoint[polygon.Length];

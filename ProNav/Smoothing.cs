@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ProNav
+﻿namespace ProNav
 {
     /// <summary>
     /// Provides a round-robin running average for a float value over time.
@@ -16,7 +9,7 @@ namespace ProNav
         private int _max;
         private int _position = 0;
         private float _current;
-      
+
         /// <summary>
         /// Current average.
         /// </summary>

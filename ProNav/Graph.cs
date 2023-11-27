@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using unvell.D2DLib;
+﻿using unvell.D2DLib;
 
 namespace ProNav
 {
@@ -97,7 +92,7 @@ namespace ProNav
                     var v = d[j];
                     var vScaled = ScaleValue(v, pos, _valBounds[j]);
                     vScaled = tmax - vScaled + tmin; // Flip Y direction.
-                    
+
                     var pnt = new D2DPoint((i * _xPadding) + pos.X - (_drawSize.Width * 0.5f), vScaled);
 
                     gfx.FillEllipse(new D2DEllipse(pnt, new D2DSize(_pointSize, _pointSize)), D2DColor.FromGDIColor(_colors[j % _colors.Length]));

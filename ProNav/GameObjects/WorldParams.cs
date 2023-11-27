@@ -1,15 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using unvell.D2DLib;
 
 namespace ProNav.GameObjects
 {
     public static class World
     {
+        public const int PHYSICS_STEPS = 8;
+
         public static float DT
         {
             get { return _dt; }
@@ -19,6 +16,13 @@ namespace ProNav.GameObjects
             }
         }
 
+        public static float SUB_DT
+        {
+            get
+            {
+                return DT / PHYSICS_STEPS;
+            }
+        }
 
         public static float RenderScale { get; set; } = 0.1f;
 
@@ -37,9 +41,8 @@ namespace ProNav.GameObjects
 
 
         public static D2DSize ViewPortSize { get; set; }
-		public static D2DSize ViewPortBaseSize { get; set; }
-
-		public static D2DRect ViewPortRect { get; set; }
+        public static D2DSize ViewPortBaseSize { get; set; }
+        public static D2DRect ViewPortRect { get; set; }
 
         public static float ViewPortScaleMulti
         {
@@ -56,6 +59,7 @@ namespace ProNav.GameObjects
         public static bool ShowTracking = false;
         public static bool EnableWind = false;
         public static bool EnableTurbulence = false;
+        public static bool UseAlternateInertia = true;
 
         private static float _zoomScale = 0.35f;
         private static float _dt = 0.06f;
@@ -73,8 +77,8 @@ namespace ProNav.GameObjects
 
         public static void UpdateViewport(Size viewPortSize)
         {
-			ViewPortBaseSize = new D2DSize(viewPortSize.Width, viewPortSize.Height);
-			ViewPortSize = new D2DSize(viewPortSize.Width * ViewPortScaleMulti, viewPortSize.Height * ViewPortScaleMulti);
+            ViewPortBaseSize = new D2DSize(viewPortSize.Width, viewPortSize.Height);
+            ViewPortSize = new D2DSize(viewPortSize.Width * ViewPortScaleMulti, viewPortSize.Height * ViewPortScaleMulti);
             ViewPortRect = new D2DRect(0, 0, viewPortSize.Width * ViewPortScaleMulti, viewPortSize.Height * ViewPortScaleMulti);
         }
 

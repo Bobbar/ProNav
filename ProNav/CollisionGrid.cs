@@ -52,7 +52,7 @@ namespace ProNav
         {
             lock (_grid)
             {
-                foreach (var  obj in objs)
+                foreach (var obj in objs)
                 {
                     EnsureCapacity(obj.Position);
 

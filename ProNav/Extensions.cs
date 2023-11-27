@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ProNav
+﻿namespace ProNav
 {
     public static class Extensions
     {
@@ -54,7 +46,7 @@ namespace ProNav
         {
             var angle = Math.Atan2(vector.Y, vector.X) * (180d / Math.PI);
 
-           if (clamp)
+            if (clamp)
                 angle = Helpers.ClampAngleD(angle);
 
             return angle;

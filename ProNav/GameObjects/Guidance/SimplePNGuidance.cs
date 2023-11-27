@@ -1,20 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ProNav.GameObjects.Guidance
+﻿namespace ProNav.GameObjects.Guidance
 {
     public class SimplePNGuidance : IGuidance
     {
         public D2DPoint ImpactPoint { get; set; }
         public D2DPoint StableAimPoint { get; set; }
         public D2DPoint CurrentAimPoint { get; set; }
-        public GuidedMissile Missile { get; set; }
+        public Missile Missile { get; set; }
         public Target Target { get; set; }
 
-        public SimplePNGuidance(GuidedMissile missile, Target target)
+        public SimplePNGuidance(Missile missile, Target target)
         {
             Missile = missile;
             Target = target;

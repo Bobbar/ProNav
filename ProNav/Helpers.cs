@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ProNav
+﻿namespace ProNav
 {
     public static class Helpers
     {
@@ -178,5 +171,17 @@ namespace ProNav
             return (vector1.X * vector2.Y) - (vector1.Y * vector2.X);
         }
 
+        public static T CycleEnum<T>(T e) where T : struct, IConvertible
+        {
+            var t = e.GetType();
+            var len = Enum.GetNames(t).Length;
+            var vals = Enum.GetValues(t) as T[];
+
+            var cur = (int)Convert.ChangeType(e, e.GetType());
+            int next = cur;
+            next = (next + 1) % len;
+
+            return vals[next];
+        }
     }
 }

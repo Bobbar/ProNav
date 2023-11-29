@@ -1,14 +1,9 @@
 ﻿namespace ProNav.GameObjects.Guidance
 {
-    public class AdvancedGuidance : IGuidance
+
+
+    public class AdvancedGuidance : GuidanceBase
     {
-        public D2DPoint ImpactPoint { get; set; }
-        public D2DPoint StableAimPoint { get; set; }
-        public D2DPoint CurrentAimPoint { get; set; }
-        public Missile Missile { get; set; }
-
-        public Target Target { get; set; }
-
         private D2DPoint _prevTargPos = D2DPoint.Zero;
         private D2DPoint _prevImpactPnt = D2DPoint.Zero;
 
@@ -18,28 +13,21 @@
         private float _prevVelo = 0f;
         private float _prevTargetDist = 0f;
         private float _prevTargVeloAngle = 0f;
-        private bool _missedTarget = false;
-        private float _reEngageMod = 0f;
 
-        public AdvancedGuidance(Missile missile, Target target)
-        {
-            Missile = missile;
-            Target = target;
-        }
+        public AdvancedGuidance(Missile missile, Target target) : base(missile, target)
+        { }
 
-        public float GuideTo(float dt)
+        public override float GetGuidanceDirection(float dt)
         {
             // Tweakables
             const float MAX_ROT_RATE = 1.5f; // Max rotation rate.
             const float MIN_ROT_RATE = 1.0f; // Min rotation rate.
             const float MIN_ROT_SPEED = 600f; // Speed at which rotation rate will be the smallest.
             const float ARM_DIST = 400f; // How far we must travel before engaging the target.
-            const float MISS_TARG_DIST = 300f; // Distance to target to be considered a miss.
-            const float REENGAGE_DIST = 2500f; // How far we must be from the target before re-engaging after a miss.
             const float ROT_MOD_DIST = 1000f; // Distance to begin increasing rotation rate. (Get more aggro the closer we get)
             const float ROT_MOD_AMT = 1f; // Max amount to increase rot rate per above distance.
             const float IMPACT_POINT_DELTA_THRESH = 2f; // Smaller value = target impact point later. (Waits until the point has stabilized more)
-            const float MIN_CLOSE_RATE = 1f; // Min closing rate required to aim at predicted impact point.
+            const float MIN_CLOSE_RATE = 0.3f; // Min closing rate required to aim at predicted impact point.
 
             var target = this.Target.CenterOfPolygon();
             var targetVelo = this.Target.Velocity * dt;
@@ -117,33 +105,9 @@
             var rotMod = (1f - Helpers.Factor(targDist, ROT_MOD_DIST)) * ROT_MOD_AMT;
             rotFact += rotMod;
 
-            // Increase rotation authority as we approach the arm distance.
-            var rotAuthority = Helpers.Factor(Missile.DistTraveled, ARM_DIST);
-
-            // Detect when we miss the target.
-            if (closingRate < MIN_CLOSE_RATE)
-            {
-                if (!_missedTarget && targDist < MISS_TARG_DIST)
-                {
-                    _missedTarget = true;
-
-                    // Increase re-engage dist slightly with each miss.
-                    _reEngageMod += REENGAGE_DIST * 0.5f;
-                }
-            }
-            else
-            {
-                _missedTarget = false;
-            }
-
-            // Reduce rotation authority if we missed until we are the specified distance away from the target.
-            // This helps give us room to turn around and make another attempt.
-            if (_missedTarget && targDist < REENGAGE_DIST + _reEngageMod)
-                rotAuthority = Helpers.Factor(targDist, REENGAGE_DIST + _reEngageMod);
-
             // Offset our current rotation from our current velocity vector to compute the next rotation.
             var nextRot = -(rotLerp * rotFact);
-            return veloAngle + (nextRot * rotAuthority);
+            return veloAngle + nextRot;
         }
 
         private float ImpactTime(float dist, float velo, float accel)

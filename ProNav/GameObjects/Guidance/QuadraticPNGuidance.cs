@@ -1,52 +1,32 @@
 ﻿namespace ProNav.GameObjects.Guidance
 {
-    public class QuadraticPNGuidance : IGuidance
+    public class QuadraticPNGuidance : GuidanceBase
     {
-        public D2DPoint ImpactPoint { get; set; }
-        public D2DPoint StableAimPoint { get; set; }
-        public D2DPoint CurrentAimPoint { get; set; }
-        public Missile Missile { get; set; }
-        public Target Target { get; set; }
+        private float _prevDir = 0f;
 
-        private float _prevTargetDist = 0f;
-
-        public QuadraticPNGuidance(Missile missile, Target target)
+        public QuadraticPNGuidance(Missile missile, Target target) : base(missile, target)
         {
-            Missile = missile;
-            Target = target;
+            _prevDir = missile.Rotation;
         }
 
-        public float GuideTo(float dt)
+        public override float GetGuidanceDirection(float dt)
         {
-            const float ARM_DIST = 600f;
-            const float MIN_CLOSE_RATE = 10f; // Min closing rate required to aim at predicted impact point.
-
             D2DPoint direction;
             var target = this.Target.CenterOfPolygon();
-            float target_rotation = this.Missile.Rotation;
+            var targetRot = this.Missile.Rotation;
 
             if (GetInterceptDirection(this.Missile.Position, target, this.Missile.Velocity.Length(), this.Target.Velocity, out direction))
             {
-                target_rotation = direction.Angle(true);
+                targetRot = direction.Angle(true);
+                _prevDir = targetRot;
             }
             else
             {
+                targetRot = _prevDir;
                 //well, I guess we cant intercept then
             }
 
-            var targDist = D2DPoint.Distance(target, this.Missile.Position);
-            var targetRotation = (target - this.Missile.Position).Angle(true);
-            var veloAngle = this.Missile.Velocity.Angle(true);
-
-            var closingRate = (_prevTargetDist - targDist);
-            _prevTargetDist = targDist;
-            var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
-            var targetRot = Helpers.LerpAngle(targetRotation, target_rotation, closeRateFact);
-
-            var armFactor = Helpers.Factor(Missile.DistTraveled, ARM_DIST);
-            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
-
-            return finalRot;
+            return targetRot;
         }
 
         private int SolveQuadratic(float a, float b, float c, out float root1, out float root2)
@@ -68,6 +48,12 @@
 
         private bool GetInterceptDirection(D2DPoint origin, D2DPoint targetPosition, float missileSpeed, D2DPoint targetVelocity, out D2DPoint result)
         {
+            if (missileSpeed == 0f)
+            {
+                result = D2DPoint.Zero;
+                return false;
+            }
+
             var los = origin - targetPosition;
             var distance = los.Length();
             var alpha = Helpers.DegreesToRads(los.AngleBetween(targetVelocity));

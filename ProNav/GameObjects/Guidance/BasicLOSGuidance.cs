@@ -1,23 +1,13 @@
 ﻿namespace ProNav.GameObjects.Guidance
 {
-    public class BasicLOSGuidance : IGuidance
+    public class BasicLOSGuidance : GuidanceBase
     {
-        public D2DPoint ImpactPoint { get; set; }
-        public D2DPoint StableAimPoint { get; set; }
-        public D2DPoint CurrentAimPoint { get; set; }
-        public Missile Missile { get; set; }
-        public Target Target { get; set; }
+        public BasicLOSGuidance(Missile missile, Target target) : base(missile, target)
+        { }
 
-        public BasicLOSGuidance(Missile missile, Target target)
-        {
-            Missile = missile;
-            Target = target;
-        }
-
-        public float GuideTo(float dt)
+        public override float GetGuidanceDirection(float dt)
         {
             const float pValue = 0.5f;
-            const float ARM_DIST = 600f;
 
             var target = this.Target.CenterOfPolygon();
             var targDist = D2DPoint.Distance(target, this.Missile.Position);
@@ -32,15 +22,12 @@
             var leadRotation = adjustment.Angle(true);
             var targetRot = leadRotation;
 
-            var armFactor = Helpers.Factor(Missile.DistTraveled, ARM_DIST);
-            var finalRot = Helpers.LerpAngle(veloAngle, targetRot, armFactor);
-
             ImpactPoint = (target + Target.Velocity * navigationTime);
 
             if (angle == 0f)
                 return veloAngle;
 
-            return finalRot;
+            return targetRot;
         }
     }
 }

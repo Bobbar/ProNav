@@ -36,8 +36,6 @@ namespace ProNav.GameObjects
 
         }
 
-        private D2DPoint _prevPos = D2DPoint.Zero;
-
         private readonly float LIFESPAN = 50f;
         private readonly float BURN_RATE_DIVISOR = 1500f;
         private float _age = 0;
@@ -51,7 +49,7 @@ namespace ProNav.GameObjects
         private float _renderOffset = 1.5f;
 
         public GuidanceType GuidanceType { get; set; } = GuidanceType.Advanced;
-        private IGuidance _guidance;
+        private GuidanceBase _guidance;
 
         private bool _useControlSurfaces = false;
         private Wing _tailWing;
@@ -66,7 +64,6 @@ namespace ProNav.GameObjects
             this.FlamePoly = new RenderPoly(_flamePoly, new D2DPoint(-0.3f, 0));
             this.Rotation = player.Rotation;
 
-            _prevPos = this.Position;
             _useControlSurfaces = useControlSurfaces;
 
             if (_useControlSurfaces)
@@ -140,7 +137,6 @@ namespace ProNav.GameObjects
                 var bodyForce = LiftDragForce(_rocketBody);
                 liftDrag += bodyForce;
             }
-
 
             // Apply guidance.
             var guideRotation = _guidance.GuideTo(dt);
@@ -235,7 +231,7 @@ namespace ProNav.GameObjects
                     break;
 
                 case GuidanceType.BasicLOS:
-                    fillColor = D2DColor.Red;
+                    fillColor = D2DColor.SkyBlue;
                     break;
 
                 case GuidanceType.SimplePN:

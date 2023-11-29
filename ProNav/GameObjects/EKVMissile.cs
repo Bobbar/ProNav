@@ -27,7 +27,7 @@ namespace ProNav.GameObjects
         };
 
         private RenderPoly FlamePoly;
-        private IGuidance _guidance;
+        private GuidanceBase _guidance;
 
         private readonly float THRUST = 3000f;
         private readonly float MASS = 35f;

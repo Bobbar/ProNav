@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using unvell.D2DLib;
+﻿using unvell.D2DLib;
 
 namespace ProNav.GameObjects
 {
@@ -25,7 +24,7 @@ namespace ProNav.GameObjects
         public D2DPoint DragVector { get; set; }
         public float AoA { get; set; }
         public D2DPoint ReferencePosition { get; set; }
-        
+
         private D2DPoint _prevPosition;
         private float _deflection = 0f;
         private Missile _missle;
@@ -66,19 +65,13 @@ namespace ProNav.GameObjects
             var nextVelo = D2DPoint.Zero;
 
             if (_prevPosition != D2DPoint.Zero)
-                nextVelo = (this.Position - _prevPosition);
+                nextVelo = (this.Position - _prevPosition) / dt;
             else
                 _prevPosition = this.Position;
 
             _prevPosition = this.Position;
 
-            if (nextVelo.Length() <= MAX_VELO)
-                this.Velocity = nextVelo;
-            else
-            {
-                Debug.WriteLine($"Err velo too high!  ({nextVelo.Length()})");
-                this.Velocity = this.Velocity.Normalized() * MAX_VELO;
-            }
+            this.Velocity = nextVelo;
         }
 
         public override void Render(D2DGraphics gfx)

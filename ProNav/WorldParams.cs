@@ -59,7 +59,6 @@ namespace ProNav
         public static bool ShowTracking = false;
         public static bool EnableWind = false;
         public static bool EnableTurbulence = false;
-        public static bool UseAlternateInertia = true;
 
         private static float _zoomScale = 0.35f;
         private static float _dt = 0.06f;

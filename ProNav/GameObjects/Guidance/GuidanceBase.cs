@@ -13,9 +13,10 @@
         private float _prevTargDist = 0f;
         private float _reEngageMod = 0f;
         private float _missDistTraveled = 0f;
+        private float _missDirection = 0f; // O.o
 
         private readonly float MISS_TARG_DIST = 500f; // Distance to be considered a miss when the closing rate goes negative.
-        private readonly float REENGAGE_DIST = 1500f; // How far we must be from the target before re-engaging after a miss.
+        private readonly float REENGAGE_DIST = 1000f;//1500f; // How far we must be from the target before re-engaging after a miss.
         private readonly float ARM_DIST = 600f;
 
         protected GuidanceBase(Missile missile, Target target)
@@ -49,9 +50,10 @@
                     _missedTarget = true;
                     _missDistTraveled = Missile.DistTraveled;
                     _reEngageMod += REENGAGE_DIST * 0.5f;
+                    _missDirection = Missile.Rotation;
                 }
             }
-               
+
             // Reduce the rotation amount to fly a straighter course until
             // we are the specified distance away from the target.
             var missDist = Missile.DistTraveled - _missDistTraveled;
@@ -74,6 +76,9 @@
             var armFactor = Helpers.Factor(Missile.DistTraveled, ARM_DIST);
 
             var finalRot = Helpers.LerpAngle(veloAngle, rotation, rotFactor * armFactor);
+
+            if (_missedTarget)
+                finalRot = Helpers.LerpAngle(_missDirection, rotation, rotFactor * armFactor);
 
             return finalRot;
         }

@@ -1,5 +1,4 @@
 ﻿using ProNav.GameObjects.Guidance;
-using System.Diagnostics;
 using unvell.D2DLib;
 
 namespace ProNav.GameObjects
@@ -113,6 +112,9 @@ namespace ProNav.GameObjects
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
         {
+            if (_age == 0f)
+                base.Update(dt, viewport, renderScale + _renderOffset);
+
             _age += dt;
 
             if (_age > LIFESPAN)
@@ -136,11 +138,8 @@ namespace ProNav.GameObjects
                 var noseTorque = GetTorque(_noseWing, noseForce);
                 var thrustTorque = GetTorque(_centerOfThrust.Position, GetThrust(thrustVector: _useThrustVectoring));
                 var torqueRot = (tailTorque + bodyTorque + noseTorque + thrustTorque) * dt;
-                
-                var inertia = this.TotalMass;
 
-                if (World.UseAlternateInertia)
-                    inertia = GetInertia(this.Polygon, this.TotalMass);
+                var inertia = GetInertia(this.Polygon, this.TotalMass);
 
                 this.Rotation += torqueRot / inertia;
             }
@@ -288,6 +287,7 @@ namespace ProNav.GameObjects
             //// Center of mass and center of lift.
             //gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(1f, 1f)), D2DColor.Orange);
             //gfx.FillEllipse(new D2DEllipse((_tailWing.Position + _noseWing.Position) / 2f, new D2DSize(1f, 1f)), D2DColor.CornflowerBlue);
+            //gfx.FillEllipse(new D2DEllipse(this.CenterOfPolygon(), new D2DSize(1f, 1f)), D2DColor.Green);
             //_centerOfThrust.Render(gfx);
         }
 
@@ -315,10 +315,7 @@ namespace ProNav.GameObjects
 
             var velo = -World.Wind;
 
-            if (World.UseAlternateInertia)
-                velo += (wing.Velocity / (World.DT / World.PHYSICS_STEPS));
-            else
-                velo += this.Velocity + wing.Velocity;
+            velo += wing.Velocity;
 
             var veloMag = velo.Length();
             var veloMagSq = (float)Math.Pow(veloMag, 2f);

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using unvell.D2DLib;
+﻿using unvell.D2DLib;
 
 namespace ProNav.GameObjects
 {
@@ -21,13 +16,7 @@ namespace ProNav.GameObjects
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
         {
-           this.Position = ApplyTranslation(ReferencePosition, GameObject.Rotation, GameObject.Position, renderScale);
-        }
-
-
-        public override void Render(D2DGraphics gfx)
-        {
-            //gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(5f, 5f)), D2DColor.Red);
+            this.Position = ApplyTranslation(ReferencePosition, GameObject.Rotation, GameObject.Position, renderScale);
         }
     }
 }

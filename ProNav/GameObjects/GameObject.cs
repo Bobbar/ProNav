@@ -91,9 +91,9 @@ namespace ProNav.GameObjects
                 this.Position = new D2DPoint(this.Position.X, 0);
         }
 
-        public abstract void Render(D2DGraphics gfx);
+        public virtual void Render(D2DGraphics gfx) { }
 
-
+        
         protected float AngleDiff(float a, float b) => Helpers.AngleDiff(a, b);
         protected double AngleDiffD(double a, double b) => Helpers.AngleDiffD(a, b);
         protected D2DPoint AngleToVector(float angle) => Helpers.AngleToVectorDegrees(angle);
@@ -149,11 +149,6 @@ namespace ProNav.GameObjects
             base.Update(dt, viewport, renderScale);
 
             Polygon.Update(this.Position, this.Rotation, renderScale);
-        }
-
-        public override void Render(D2DGraphics gfx)
-        {
-            gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
         }
 
         public virtual bool Contains(GameObjectPoly obj)

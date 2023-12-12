@@ -9,12 +9,14 @@
         protected Missile Missile { get; set; }
         protected Target Target { get; set; }
 
-        private bool _missedTarget = false;
+        public bool _missedTarget = false;
         private float _prevTargDist = 0f;
+        private float _reEngageMod = 0f;
+        private float _missDistTraveled = 0f;
 
-        const float MISS_TARG_DIST = 300f; // Distance to be considered a miss when the closing rate goes negative.
-        const float REENGAGE_DIST = 2500f; // How far we must be from the target before re-engaging after a miss.
-        const float ARM_DIST = 600f;
+        private readonly float MISS_TARG_DIST = 500f; // Distance to be considered a miss when the closing rate goes negative.
+        private readonly float REENGAGE_DIST = 1500f; // How far we must be from the target before re-engaging after a miss.
+        private readonly float ARM_DIST = 600f;
 
         protected GuidanceBase(Missile missile, Target target)
         {
@@ -24,6 +26,11 @@
 
         public float GuideTo(float dt)
         {
+            // The guidance logic doesn't work when velo is zero.
+            // Always return the current rotation if we aren't moving yet.
+            if (Missile.Velocity.Length() == 0f)
+                return Missile.Rotation;
+
             var rotFactor = 1f;
             var veloAngle = Missile.Velocity.Angle();
 
@@ -35,23 +42,40 @@
             var closingRate = _prevTargDist - targDist;
             _prevTargDist = targDist;
 
-            if (closingRate < 0f)
+            if (closingRate < 0.1f)
+            {
                 if (!_missedTarget && targDist < MISS_TARG_DIST)
+                {
                     _missedTarget = true;
-                else
-                    _missedTarget = false;
-
+                    _missDistTraveled = Missile.DistTraveled;
+                    _reEngageMod += REENGAGE_DIST * 0.5f;
+                }
+            }
+               
             // Reduce the rotation amount to fly a straighter course until
             // we are the specified distance away from the target.
-            if (_missedTarget && targDist < REENGAGE_DIST)
-                rotFactor = Helpers.Factor(targDist, REENGAGE_DIST);
+            var missDist = Missile.DistTraveled - _missDistTraveled;
+
+            if (_missedTarget)
+            {
+                var reengageDist = REENGAGE_DIST + _reEngageMod;
+
+                if (missDist < reengageDist / 2f)
+                    rotFactor = 1f - Helpers.Factor(missDist, reengageDist / 2f);
+                else
+                    rotFactor = Helpers.Factor(missDist / 2f, reengageDist);
+            }
+
+            if (_missedTarget && missDist >= REENGAGE_DIST + _reEngageMod)
+                _missedTarget = false;
 
             // Lerp from current rotation towards guidance rotation as we 
             // approach the specified arm distance.
             var armFactor = Helpers.Factor(Missile.DistTraveled, ARM_DIST);
-            var finalRot = Helpers.LerpAngle(veloAngle, rotation, armFactor);
 
-            return finalRot * rotFactor;
+            var finalRot = Helpers.LerpAngle(veloAngle, rotation, rotFactor * armFactor);
+
+            return finalRot;
         }
 
         /// <summary>

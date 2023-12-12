@@ -7,9 +7,6 @@
         private D2DPoint _prevTargPos = D2DPoint.Zero;
         private D2DPoint _prevImpactPnt = D2DPoint.Zero;
 
-        private SmoothFloat _impactPntDeltaSmooth = new SmoothFloat(5);
-        private SmoothPos _aimDirSmooth = new SmoothPos(5);
-
         private float _prevVelo = 0f;
         private float _prevTargetDist = 0f;
         private float _prevTargVeloAngle = 0f;
@@ -23,7 +20,6 @@
             const float MAX_ROT_RATE = 1.5f; // Max rotation rate.
             const float MIN_ROT_RATE = 1.0f; // Min rotation rate.
             const float MIN_ROT_SPEED = 600f; // Speed at which rotation rate will be the smallest.
-            const float ARM_DIST = 400f; // How far we must travel before engaging the target.
             const float ROT_MOD_DIST = 1000f; // Distance to begin increasing rotation rate. (Get more aggro the closer we get)
             const float ROT_MOD_AMT = 1f; // Max amount to increase rot rate per above distance.
             const float IMPACT_POINT_DELTA_THRESH = 2f; // Smaller value = target impact point later. (Waits until the point has stabilized more)
@@ -66,7 +62,6 @@
             // Compute the speed (delta) of the impact point as it is refined.
             // Slower sleep = higher confidence.
             var impactPntDelta = D2DPoint.Distance(_prevImpactPnt, impactPnt);
-            impactPntDelta = _impactPntDeltaSmooth.Add(impactPntDelta);
             _prevImpactPnt = impactPnt;
 
             // Only update the stable aim point when the predicted impact point is moving slowly.
@@ -80,14 +75,14 @@
             _prevTargetDist = targDist;
             var closeRateFact = Helpers.Factor(closingRate, MIN_CLOSE_RATE);
             var aimDirection = D2DPoint.Lerp(D2DPoint.Normalize(target - this.Missile.Position), D2DPoint.Normalize(StableAimPoint - this.Missile.Position), closeRateFact);
-            aimDirection = _aimDirSmooth.Add(aimDirection);
             CurrentAimPoint = D2DPoint.Lerp(target, StableAimPoint, closeRateFact); // Green
 
             // Compute velo norm, tangent & rotations.
             var veloNorm = D2DPoint.Normalize(this.Missile.Velocity);
-            var veloNormTan = new D2DPoint(veloNorm.Y, -veloNorm.Cross(new D2DPoint(0, 1))); // Up
-            var rotAmtNorm = aimDirection.Cross(veloNorm) * (180f / (float)Math.PI);
-            var rotAmtTan = -aimDirection.Cross(veloNormTan) * (180f / (float)Math.PI);
+            var veloNormTan = new D2DPoint(veloNorm.Y, -veloNorm.X);
+
+            var rotAmtNorm = Helpers.RadsToDegrees(aimDirection.Cross(veloNorm));
+            var rotAmtTan = -1f * Helpers.RadsToDegrees(aimDirection.Cross(veloNormTan));
 
             // Lerp between the two rotations as angle diff changes.
             var targetDirAngle = aimDirection.Angle();

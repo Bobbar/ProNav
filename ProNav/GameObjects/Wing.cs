@@ -25,7 +25,7 @@ namespace ProNav.GameObjects
         public D2DPoint DragVector { get; set; }
         public float AoA { get; set; }
         public D2DPoint ReferencePosition { get; set; }
-
+        
         private D2DPoint _prevPosition;
         private float _deflection = 0f;
         private Missile _missle;
@@ -40,6 +40,8 @@ namespace ProNav.GameObjects
             Rotation = missile.Rotation;
             this.Velocity = D2DPoint.Zero;
             _missle = missile;
+
+            this.Position = ApplyTranslation(this.ReferencePosition, _missle.Rotation, _missle.Position, World.RenderScale);
         }
 
         public Wing(Missile missile, float renderLen, float area, float maxDeflection, D2DPoint position)
@@ -52,6 +54,8 @@ namespace ProNav.GameObjects
             _maxDeflection = maxDeflection;
             this.Velocity = D2DPoint.Zero;
             _missle = missile;
+
+            this.Position = ApplyTranslation(this.ReferencePosition, _missle.Rotation, _missle.Position, World.RenderScale);
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)

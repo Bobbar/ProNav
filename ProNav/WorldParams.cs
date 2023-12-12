@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using unvell.D2DLib;
 
-namespace ProNav.GameObjects
+namespace ProNav
 {
     public static class World
     {

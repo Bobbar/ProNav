@@ -6,7 +6,7 @@ namespace ProNav.GameObjects
     {
         public bool FlameOn = false;
 
-        private const float THRUST = 65f;//10f;
+        private const float THRUST = 300f;
 
         private D2DColor _fillColor = new D2DColor(0.8f, D2DColor.DarkGray);
         private D2DColor _flameFillColor = new D2DColor(0.8f, D2DColor.Yellow);

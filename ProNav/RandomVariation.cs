@@ -1,4 +1,4 @@
-﻿namespace ProNav.GameObjects
+﻿namespace ProNav
 {
     public class RandomVariationFloat
     {

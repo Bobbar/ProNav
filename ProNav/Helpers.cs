@@ -1,4 +1,6 @@
-﻿namespace ProNav
+﻿using System.Numerics;
+
+namespace ProNav
 {
     public static class Helpers
     {
@@ -10,6 +12,12 @@
         {
             return value1 + (value2 - value1) * amount;
         }
+        public static float Lerp(float value1, float value2, float factor1, float factor2)
+        {
+            return value1 + (value2 - value1) * Factor(factor1, factor2);
+        }
+
+
 
         public static float LerpAngle(float value1, float value2, float amount)
         {
@@ -182,6 +190,15 @@
             next = (next + 1) % len;
 
             return vals[next];
+        }
+
+        public static D2DPoint ApplyTranslation(D2DPoint src, float rotation, D2DPoint translation, float scale = 1f)
+        {
+            var mat = Matrix3x2.CreateScale(scale);
+            mat *= Matrix3x2.CreateRotation(rotation * (float)(Math.PI / 180f), D2DPoint.Zero);
+            mat *= Matrix3x2.CreateTranslation(translation);
+
+            return D2DPoint.Transform(src, mat);
         }
     }
 }

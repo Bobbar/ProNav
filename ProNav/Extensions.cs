@@ -42,6 +42,16 @@
             return angle;
         }
 
+        public static float AngleRads(this D2DPoint vector, bool clamp = false)
+        {
+            var angle = (float)Math.Atan2(vector.Y, vector.X);
+
+            if (clamp)
+                angle = Helpers.ClampAngle(angle);
+
+            return angle;
+        }
+
         public static double AngleD(this D2DPoint vector, bool clamp = false)
         {
             var angle = Math.Atan2(vector.Y, vector.X) * (180d / Math.PI);

@@ -51,5 +51,18 @@ namespace ProNav.GameObjects
                 dst[i] = transPnt;
             }
         }
+
+        private void ApplyTranslation(D2DPoint[] src, D2DPoint[] dst, float rotation, D2DPoint centerPoint, D2DPoint translation, float scale = 1f)
+        {
+            var mat = Matrix3x2.CreateScale(scale);
+            mat *= Matrix3x2.CreateRotation(rotation * (float)(Math.PI / 180f), centerPoint);
+            mat *= Matrix3x2.CreateTranslation(translation);
+
+            for (int i = 0; i < dst.Length; i++)
+            {
+                var transPnt = D2DPoint.Transform(src[i], mat);
+                dst[i] = transPnt;
+            }
+        }
     }
 }

@@ -492,6 +492,9 @@ namespace ProNav
                 case InterceptorTypes.ControlSurface:
                     return new GuidedMissile(_player, target, guidance, useControlSurfaces: true);
 
+                case InterceptorTypes.ControlSurfaceWithThrustVectoring:
+                    return new GuidedMissile(_player, target, guidance, useControlSurfaces: true, useThrustVectoring: true);
+
                 case InterceptorTypes.DirectRotation:
                     return new GuidedMissile(_player, target, guidance, useControlSurfaces: false);
 

@@ -4,8 +4,6 @@ namespace ProNav.GameObjects
 {
     public class Wing : GameObject
     {
-        private readonly float MAX_VELO = 300f;
-
         public float RenderLength { get; set; }
         public float Area { get; set; }
         public float Deflection
@@ -23,8 +21,8 @@ namespace ProNav.GameObjects
         public D2DPoint LiftVector { get; set; }
         public D2DPoint DragVector { get; set; }
         public float AoA { get; set; }
-        public D2DPoint ReferencePosition { get; set; }
 
+        private FixturePoint FixedPosition;
         private D2DPoint _prevPosition;
         private float _deflection = 0f;
         private Missile _missle;
@@ -32,35 +30,33 @@ namespace ProNav.GameObjects
 
         public Wing(Missile missile, float renderLen, float area, D2DPoint position)
         {
+            FixedPosition = new FixturePoint(missile, position);
+
             RenderLength = renderLen;
             Area = area;
-            Position = position;
-            ReferencePosition = position;
             Rotation = missile.Rotation;
             this.Velocity = D2DPoint.Zero;
             _missle = missile;
-
-            this.Position = ApplyTranslation(this.ReferencePosition, _missle.Rotation, _missle.Position, World.RenderScale);
         }
 
         public Wing(Missile missile, float renderLen, float area, float maxDeflection, D2DPoint position)
         {
+            FixedPosition = new FixturePoint(missile, position);
+
             RenderLength = renderLen;
             Area = area;
-            Position = position;
-            ReferencePosition = position;
             Rotation = missile.Rotation;
             _maxDeflection = maxDeflection;
             this.Velocity = D2DPoint.Zero;
             _missle = missile;
-
-            this.Position = ApplyTranslation(this.ReferencePosition, _missle.Rotation, _missle.Position, World.RenderScale);
         }
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
         {
+            FixedPosition.Update(dt, viewport, renderScale);
+
             this.Rotation = _missle.Rotation + this.Deflection;
-            this.Position = ApplyTranslation(this.ReferencePosition, _missle.Rotation, _missle.Position, renderScale);
+            this.Position = FixedPosition.Position;
 
             var nextVelo = D2DPoint.Zero;
 

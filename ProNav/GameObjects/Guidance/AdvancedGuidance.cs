@@ -101,8 +101,9 @@
             rotFact += rotMod;
 
             // Offset our current rotation from our current velocity vector to compute the next rotation.
-            var nextRot = -(rotLerp * rotFact);
-            return veloAngle + nextRot;
+            var nextRot = veloAngle + -(rotLerp * rotFact);
+
+            return nextRot;
         }
 
         private float ImpactTime(float dist, float velo, float accel)

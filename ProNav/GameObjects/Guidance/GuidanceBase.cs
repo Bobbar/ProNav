@@ -34,6 +34,7 @@
 
             var rotFactor = 1f;
             var veloAngle = Missile.Velocity.Angle();
+            var initialAngle = veloAngle;
 
             // Get rotation from implementation.
             var rotation = GetGuidanceDirection(dt);
@@ -61,11 +62,8 @@
             if (_missedTarget)
             {
                 var reengageDist = REENGAGE_DIST + _reEngageMod;
-
-                if (missDist < reengageDist / 2f)
-                    rotFactor = 1f - Helpers.Factor(missDist, reengageDist / 2f);
-                else
-                    rotFactor = Helpers.Factor(missDist / 2f, reengageDist);
+                rotFactor = Helpers.Factor(missDist, reengageDist);
+                initialAngle = _missDirection;
             }
 
             if (_missedTarget && missDist >= REENGAGE_DIST + _reEngageMod)
@@ -75,10 +73,7 @@
             // approach the specified arm distance.
             var armFactor = Helpers.Factor(Missile.DistTraveled, ARM_DIST);
 
-            var finalRot = Helpers.LerpAngle(veloAngle, rotation, rotFactor * armFactor);
-
-            if (_missedTarget)
-                finalRot = Helpers.LerpAngle(_missDirection, rotation, rotFactor * armFactor);
+            var finalRot = Helpers.LerpAngle(initialAngle, rotation, rotFactor * armFactor);
 
             return finalRot;
         }

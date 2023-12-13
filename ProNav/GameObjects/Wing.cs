@@ -73,13 +73,15 @@ namespace ProNav.GameObjects
         public override void Render(D2DGraphics gfx)
         {
             // Draw a fixed box behind the moving wing. Helps to visualize deflection.
-            var startB = this.Position - Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;
-            var endB = this.Position + Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection) * RenderLength;
+            var fixedVec = Helpers.AngleToVectorDegrees(this.Rotation - this.Deflection);
+            var startB = this.Position - fixedVec * RenderLength;
+            var endB = this.Position + fixedVec * RenderLength;
             gfx.DrawLine(startB, endB, D2DColor.DarkGray, 2f);
 
             // Draw wing.
-            var start = this.Position - Helpers.AngleToVectorDegrees(this.Rotation) * RenderLength;
-            var end = this.Position + Helpers.AngleToVectorDegrees(this.Rotation) * RenderLength;
+            var wingVec = Helpers.AngleToVectorDegrees(this.Rotation);
+            var start = this.Position - wingVec * RenderLength;
+            var end = this.Position + wingVec * RenderLength;
             gfx.DrawLine(start, end, D2DColor.Blue, 1f, D2DDashStyle.Solid, D2DCapStyle.Round, D2DCapStyle.Round);
 
             if (World.ShowAero)
@@ -88,6 +90,59 @@ namespace ProNav.GameObjects
                 gfx.DrawLine(this.Position, this.Position + (LiftVector * SCALE), D2DColor.SkyBlue, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
                 gfx.DrawLine(this.Position, this.Position + (DragVector * SCALE), D2DColor.Red, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
             }
+        }
+
+        public D2DPoint GetLiftDragForce()
+        {
+            if (this.Velocity.Length() == 0f)
+                return D2DPoint.Zero;
+
+            var velo = -World.Wind;
+
+            velo += this.Velocity;
+
+            var veloMag = velo.Length();
+            var veloMagSq = (float)Math.Pow(veloMag, 2f);
+
+            // Compute velo tangent. For lift/drag and rotation calcs.
+            var veloNorm = D2DPoint.Normalize(velo);
+            var veloNormTan = new D2DPoint(veloNorm.Y, -veloNorm.X);
+
+            // Compute angle of attack.
+            var aoaRads = AngleToVector(this.Rotation).Cross(veloNorm);
+            var aoa = Helpers.RadsToDegrees(aoaRads);
+
+            // Compute lift force as velocity tangent with angle-of-attack effecting magnitude and direction. Velocity magnitude is factored as well.
+            // Greater AoA and greater velocity = more lift force.
+
+            // Wing & air parameters.
+            const float AOA_FACT = 0.2f; // How much AoA effects drag.
+            const float VELO_FACT = 0.4f; // How much velocity effects drag.
+            float WING_AREA = this.Area; // Area of the wing. Effects lift & drag forces.
+            const float MAX_LIFT = 20000f; // Max lift force allowed.
+            const float MAX_AOA = 40f; // Max AoA allowed before lift force reduces. (Stall)
+            float AIR_DENSITY = World.AirDensity;
+            const float PARASITIC_DRAG = 0.5f;
+
+            // Drag force.
+            var dragAoa = 1f - (float)Math.Cos(2f * aoaRads);
+            var dragForce = dragAoa * AOA_FACT * WING_AREA * 0.5f * AIR_DENSITY * veloMagSq * VELO_FACT;
+            dragForce += veloMag * (WING_AREA * PARASITIC_DRAG);
+
+            // Lift force.
+            var aoaFact = Helpers.Factor(MAX_AOA, Math.Abs(aoa));
+            var coeffLift = (float)Math.Sin(2f * aoaRads) * aoaFact;
+            var liftForce = AIR_DENSITY * 0.5f * veloMagSq * WING_AREA * coeffLift;
+            liftForce = Math.Clamp(liftForce, -MAX_LIFT, MAX_LIFT);
+
+            var dragVec = -veloNorm * dragForce;
+            var liftVec = veloNormTan * liftForce;
+
+            this.LiftVector = liftVec;
+            this.DragVector = dragVec;
+            this.AoA = aoa;
+
+            return (liftVec + dragVec);
         }
 
     }

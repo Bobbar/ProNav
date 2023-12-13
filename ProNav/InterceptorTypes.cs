@@ -2,8 +2,8 @@
 {
     public enum InterceptorTypes
     {
-        ControlSurface,
         ControlSurfaceWithThrustVectoring,
+        ControlSurface,
         DirectRotation,
         KillVehicle
     }

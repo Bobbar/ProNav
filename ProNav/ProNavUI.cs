@@ -47,7 +47,7 @@ namespace ProNav
 
         private Ship _player = new Ship();
         private GuidanceType _guidanceType = GuidanceType.Advanced;
-        private InterceptorTypes _interceptorType = InterceptorTypes.ControlSurface;
+        private InterceptorTypes _interceptorType = InterceptorTypes.ControlSurfaceWithThrustVectoring;
         private TargetTypes _targetTypes = TargetTypes.Random;
 
         private readonly D2DColor _blurColor = new D2DColor(0.05f, D2DColor.Black);

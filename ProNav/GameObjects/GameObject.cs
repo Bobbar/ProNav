@@ -93,7 +93,7 @@ namespace ProNav.GameObjects
 
         public virtual void Render(D2DGraphics gfx) { }
 
-        
+
         protected float AngleDiff(float a, float b) => Helpers.AngleDiff(a, b);
         protected double AngleDiffD(double a, double b) => Helpers.AngleDiffD(a, b);
         protected D2DPoint AngleToVector(float angle) => Helpers.AngleToVectorDegrees(angle);

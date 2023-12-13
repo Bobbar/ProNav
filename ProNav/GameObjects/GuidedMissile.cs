@@ -127,9 +127,9 @@ namespace ProNav.GameObjects
 
             if (_useControlSurfaces)
             {
-                var tailForce = LiftDragForce(_tailWing);
-                var noseForce = LiftDragForce(_noseWing);
-                var bodyForce = LiftDragForce(_rocketBody);
+                var tailForce =_tailWing.GetLiftDragForce();
+                var noseForce = _noseWing.GetLiftDragForce();
+                var bodyForce = _rocketBody.GetLiftDragForce();
                 liftDrag += tailForce + noseForce + bodyForce;
 
                 // Compute torque and rotation result.
@@ -145,7 +145,7 @@ namespace ProNav.GameObjects
             }
             else
             {
-                var bodyForce = LiftDragForce(_rocketBody);
+                var bodyForce = _rocketBody.GetLiftDragForce();
                 liftDrag += bodyForce;
             }
 
@@ -298,67 +298,15 @@ namespace ProNav.GameObjects
 
             var pos = new D2DPoint(5.5f, HEIGHT * 0.5f);
             var offsetPos = this.ApplyTranslation(pos, this.Rotation, this.Position);
+            var angleVec = Helpers.AngleToVectorDegrees(this.Rotation - 90f);
 
             // Background
-            var vec1 = Helpers.AngleToVectorDegrees(this.Rotation - 90f) * HEIGHT;
+            var vec1 = angleVec * HEIGHT;
             gfx.DrawLine(offsetPos, offsetPos + vec1, D2DColor.DarkGray, WIDTH);
 
             // Gauge
-            var vec2 = Helpers.AngleToVectorDegrees(this.Rotation - 90f) * (HEIGHT * (_currentFuel / FUEL));
+            var vec2 = angleVec * (HEIGHT * (_currentFuel / FUEL));
             gfx.DrawLine(offsetPos, offsetPos + vec2, _currentBoostFuel > 0f ? D2DColor.Red : D2DColor.DarkRed, WIDTH);
-        }
-
-        private D2DPoint LiftDragForce(Wing wing)
-        {
-            if (wing.Velocity.Length() == 0f)
-                return D2DPoint.Zero;
-
-            var velo = -World.Wind;
-
-            velo += wing.Velocity;
-
-            var veloMag = velo.Length();
-            var veloMagSq = (float)Math.Pow(veloMag, 2f);
-
-            // Compute velo tangent. For lift/drag and rotation calcs.
-            var veloNorm = D2DPoint.Normalize(velo);
-            var veloNormTan = new D2DPoint(veloNorm.Y, -veloNorm.X);
-
-            // Compute angle of attack.
-            var aoaRads = AngleToVector(wing.Rotation).Cross(veloNorm);
-            var aoa = Helpers.RadsToDegrees(aoaRads);
-
-            // Compute lift force as velocity tangent with angle-of-attack effecting magnitude and direction. Velocity magnitude is factored as well.
-            // Greater AoA and greater velocity = more lift force.
-
-            // Wing & air parameters.
-            const float AOA_FACT = 0.2f; // How much AoA effects drag.
-            const float VELO_FACT = 0.4f; // How much velocity effects drag.
-            float WING_AREA = wing.Area; // Area of the wing. Effects lift & drag forces.
-            const float MAX_LIFT = 20000f; // Max lift force allowed.
-            const float MAX_AOA = 40f; // Max AoA allowed before lift force reduces. (Stall)
-            float AIR_DENSITY = World.AirDensity;
-            const float PARASITIC_DRAG = 0.5f;
-
-            // Drag force.
-            var dragAoa = 1f - (float)Math.Cos(2f * aoaRads);
-            var dragForce = dragAoa * AOA_FACT * WING_AREA * 0.5f * AIR_DENSITY * veloMagSq * VELO_FACT;
-            dragForce += veloMag * (WING_AREA * PARASITIC_DRAG);
-
-            // Lift force.
-            var aoaFact = Helpers.Factor(MAX_AOA, Math.Abs(aoa));
-            var coeffLift = (float)Math.Sin(2f * aoaRads) * aoaFact;
-            var liftForce = AIR_DENSITY * 0.5f * veloMagSq * WING_AREA * coeffLift;
-            liftForce = Math.Clamp(liftForce, -MAX_LIFT, MAX_LIFT);
-
-            var dragVec = -veloNorm * dragForce;
-            var liftVec = veloNormTan * liftForce;
-
-            wing.LiftVector = liftVec;
-            wing.DragVector = dragVec;
-            wing.AoA = aoa;
-
-            return (liftVec + dragVec);
         }
 
         private float GetTorque(Wing wing, D2DPoint force)

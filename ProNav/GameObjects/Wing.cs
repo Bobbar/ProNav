@@ -8,13 +8,13 @@ namespace ProNav.GameObjects
         public float Area { get; set; }
         public float Deflection
         {
-            get { return _deflection; }
+            get { return _defRateLimit.Value; }
             set
             {
                 if (value >= -_maxDeflection && value <= _maxDeflection)
-                    _deflection = value;
+                    _defRateLimit.Target = value;
                 else
-                    _deflection = Math.Sign(value) * _maxDeflection;
+                    _defRateLimit.Target = Math.Sign(value) * _maxDeflection;
             }
         }
 
@@ -25,10 +25,10 @@ namespace ProNav.GameObjects
         private FixturePoint FixedPosition;
         private D2DPoint _prevPosition;
         private Missile _missle;
+        private RateLimiter _defRateLimit = new RateLimiter(rate: 30f);
 
         private float _maxDeflection = 40f;
         private float _maxLift = 15000f;
-        private float _deflection = 0f;
 
         public Wing(Missile missile, float renderLen, float area, D2DPoint position)
         {
@@ -68,6 +68,7 @@ namespace ProNav.GameObjects
 
         public override void Update(float dt, D2DSize viewport, float renderScale)
         {
+            _defRateLimit.Update(dt);
             FixedPosition.Update(dt, viewport, renderScale);
 
             this.Rotation = _missle.Rotation + this.Deflection;
@@ -92,6 +93,12 @@ namespace ProNav.GameObjects
             var startB = this.Position - fixedVec * RenderLength;
             var endB = this.Position + fixedVec * RenderLength;
             gfx.DrawLine(startB, endB, D2DColor.DarkGray, 2f);
+
+            //// Draw wing without rate limit.
+            //var wingVecRaw = Helpers.AngleToVectorDegrees(_missle.Rotation + _defRateLimit.Target);
+            //var startRaw = this.Position - wingVecRaw * RenderLength;
+            //var end2Raw = this.Position + wingVecRaw * RenderLength;
+            //gfx.DrawLine(startRaw, end2Raw, D2DColor.Red, 1f, D2DDashStyle.Solid, D2DCapStyle.Round, D2DCapStyle.Round);
 
             // Draw wing.
             var wingVec = Helpers.AngleToVectorDegrees(this.Rotation);

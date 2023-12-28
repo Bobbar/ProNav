@@ -18,5 +18,11 @@ namespace ProNav.GameObjects
         {
             this.Position = ApplyTranslation(ReferencePosition, GameObject.Rotation, GameObject.Position, renderScale);
         }
+
+        public override void Render(D2DGraphics gfx)
+        {
+            gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(1f, 1f)), D2DColor.Red);
+        }
+
     }
 }

@@ -1,7 +1,5 @@
 ﻿namespace ProNav.GameObjects.Guidance
 {
-
-
     public class AdvancedGuidance : GuidanceBase
     {
         private D2DPoint _prevTargPos = D2DPoint.Zero;
@@ -11,14 +9,14 @@
         private float _prevTargetDist = 0f;
         private float _prevTargVeloAngle = 0f;
 
-        public AdvancedGuidance(Missile missile, Target target) : base(missile, target)
+        public AdvancedGuidance(Missile missile, GameObjectPoly target) : base(missile, target)
         { }
 
         public override float GetGuidanceDirection(float dt)
         {
             // Tweakables
-            const float MAX_ROT_RATE = 2.5f; // Max rotation rate.
-            const float MIN_ROT_RATE = 1.0f; // Min rotation rate.
+            const float MAX_ROT_RATE = 1.5f;//1.5f; // Max rotation rate.
+            const float MIN_ROT_RATE = 1f;//1.0f; // Min rotation rate.
             const float MIN_ROT_SPEED = 600f; // Speed at which rotation rate will be the smallest.
             const float ROT_MOD_DIST = 1000f; // Distance to begin increasing rotation rate. (Get more aggro the closer we get)
             const float ROT_MOD_AMT = 1f; // Max amount to increase rot rate per above distance.

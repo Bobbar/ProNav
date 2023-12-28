@@ -122,8 +122,8 @@ namespace ProNav.GameObjects
         private float _targRot = 0;
         private D2DPoint _targVelo = D2DPoint.Zero;
 
-        private float _minTime = 5f;
-        private float _maxTime = 20f;
+        private float _minTime = 1f;
+        private float _maxTime = 3f;
 
         private SmoothFloat _rotSmooth = new SmoothFloat(300);
         private SmoothPos _veloSmooth = new SmoothPos(300);
@@ -132,8 +132,8 @@ namespace ProNav.GameObjects
         public ErraticMovingTarget(D2DPoint pos) : base(pos)
         {
             this.Polygon = new RenderPoly(GameObjectPoly.RandomPoly(this.NumPolyPoints, this.PolyRadius));
-            this.Velocity = RandOPoint(MIN_MAX_VELO);
-            this.RotationSpeed = RandOFloat(MIN_MAX_ROT);
+            this.Velocity = RandOPoint(MIN_MAX_VELO * 2f);
+            this.RotationSpeed = RandOFloat(MIN_MAX_ROT * 2f);
 
             _targRot = this.RotationSpeed;
             _targVelo = this.Velocity;

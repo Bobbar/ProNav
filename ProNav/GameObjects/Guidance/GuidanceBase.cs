@@ -1,4 +1,6 @@
-﻿namespace ProNav.GameObjects.Guidance
+﻿using System.Diagnostics;
+
+namespace ProNav.GameObjects.Guidance
 {
     public abstract class GuidanceBase
     {
@@ -7,7 +9,8 @@
         public D2DPoint CurrentAimPoint { get; set; }
 
         protected Missile Missile { get; set; }
-        protected Target Target { get; set; }
+        protected GameObjectPoly Target { get; set; }
+
 
         public bool _missedTarget = false;
         private float _prevTargDist = 0f;
@@ -17,9 +20,9 @@
 
         private readonly float MISS_TARG_DIST = 500f; // Distance to be considered a miss when the closing rate goes negative.
         private readonly float REENGAGE_DIST = 1000f;//1500f; // How far we must be from the target before re-engaging after a miss.
-        private readonly float ARM_DIST = 600f;
+        private readonly float ARM_DIST = 1200f;//600f;
 
-        protected GuidanceBase(Missile missile, Target target)
+        protected GuidanceBase(Missile missile, GameObjectPoly target)
         {
             Missile = missile;
             Target = target;
@@ -27,7 +30,7 @@
 
         public float GuideTo(float dt)
         {
-            // The guidance logic doesn't work when velo is zero.
+            // The guidance logic doesn't work when velo is zero (or very close).
             // Always return the current rotation if we aren't moving yet.
             if (Missile.Velocity.Length() == 0f)
                 return Missile.Rotation;
@@ -39,6 +42,9 @@
             // Get rotation from implementation.
             var rotation = GetGuidanceDirection(dt);
 
+            if (float.IsNaN(rotation))
+                Debugger.Break();
+
             // Compute closing rate and detect when we miss the target.
             var targDist = D2DPoint.Distance(Missile.Position, Target.Position);
             var closingRate = _prevTargDist - targDist;
@@ -48,6 +54,9 @@
             {
                 if (!_missedTarget && targDist < MISS_TARG_DIST)
                 {
+                    if (World.ExpireMissilesOnMiss)
+                        this.Missile.IsExpired = true;
+
                     _missedTarget = true;
                     _missDistTraveled = Missile.DistTraveled;
                     _reEngageMod += REENGAGE_DIST * 0.5f;

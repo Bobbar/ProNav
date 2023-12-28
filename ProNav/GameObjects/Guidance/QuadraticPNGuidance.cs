@@ -4,7 +4,7 @@
     {
         private float _prevDir = 0f;
 
-        public QuadraticPNGuidance(Missile missile, Target target) : base(missile, target)
+        public QuadraticPNGuidance(Missile missile, GameObjectPoly target) : base(missile, target)
         {
             _prevDir = missile.Rotation;
         }
@@ -25,6 +25,9 @@
                 targetRot = _prevDir;
                 //well, I guess we cant intercept then
             }
+
+            if (float.IsNaN(targetRot))
+                targetRot = this.Missile.Rotation;
 
             return targetRot;
         }

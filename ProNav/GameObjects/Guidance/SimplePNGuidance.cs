@@ -2,7 +2,7 @@
 {
     public class SimplePNGuidance : GuidanceBase
     {
-        public SimplePNGuidance(Missile missile, Target target) : base(missile, target)
+        public SimplePNGuidance(Missile missile, GameObjectPoly target) : base(missile, target)
         { }
 
         public override float GetGuidanceDirection(float dt)

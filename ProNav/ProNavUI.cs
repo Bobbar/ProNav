@@ -490,7 +490,7 @@ namespace ProNav
             switch (_interceptorType)
             {
                 case InterceptorTypes.ControlSurface:
-                    return new GuidedMissile(_player, target, guidance, useControlSurfaces: true);
+                    return new GuidedMissile(_player, target, guidance, useControlSurfaces: true, useThrustVectoring: false);
 
                 case InterceptorTypes.ControlSurfaceWithThrustVectoring:
                     return new GuidedMissile(_player, target, guidance, useControlSurfaces: true, useThrustVectoring: true);
@@ -591,8 +591,10 @@ namespace ProNav
             _missiles.Clear();
             _targets.Clear();
 
-            _player.Position = new D2DPoint(106, 100);
-            _player.Rotation = 0;
+            //_player.Position = new D2DPoint(106, 100);
+            _player.Position = new D2DPoint(this.Width / 2f, this.Height / 2f);
+
+            _player.Rotation = 90f;
 
             Helpers.Rnd = new Random(1234);
 
@@ -691,9 +693,11 @@ namespace ProNav
         private void DrawMissileOverlays(D2DGraphics gfx)
         {
             var scale = 8f * World.ViewPortScaleMulti;
+            //var scale = 5f * World.ViewPortScaleMulti;
 
             var zAmt = World.ZoomScale;
-            var pos = new D2DPoint(World.ViewPortSize.width * 0.5f * zAmt, World.ViewPortSize.height * 0.25f * zAmt);
+            //var pos = new D2DPoint(World.ViewPortSize.width * 0.5f * zAmt, World.ViewPortSize.height * 0.25f * zAmt);
+            var pos = new D2DPoint(World.ViewPortSize.width * 0.5f * zAmt, World.ViewPortSize.height * 0.5f * zAmt);
 
             for (int m = 0; m < _missiles.Count; m++)
             {

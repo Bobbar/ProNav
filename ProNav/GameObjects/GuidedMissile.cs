@@ -5,18 +5,19 @@ namespace ProNav.GameObjects
 {
     public class GuidedMissile : Missile
     {
-        public Target Target { get; set; }
+        public GameObjectPoly Target { get; set; }
 
         private static readonly D2DPoint[] _missilePoly = new D2DPoint[]
         {
-            new D2DPoint(14, 0),
-            new D2DPoint(11, 2),
-            new D2DPoint(-6, 2),
-            new D2DPoint(-8, 4),
-            new D2DPoint(-8, -4),
-            new D2DPoint(-6, -2),
-            new D2DPoint(11, -2)
+            new D2DPoint(28, 0),
+            new D2DPoint(25, 2),
+            new D2DPoint(-20, 2),
+            new D2DPoint(-22, 4),
+            new D2DPoint(-22, -4),
+            new D2DPoint(-20, -2),
+            new D2DPoint(25, -2)
         };
+
 
         private static readonly D2DPoint[] _flamePoly = new D2DPoint[]
         {
@@ -25,26 +26,19 @@ namespace ProNav.GameObjects
             new D2DPoint(-8, -2),
         };
 
-        private float BURN_RATE
-        {
-            get { return THRUST / BURN_RATE_DIVISOR; }
-        }
-
         private float TotalMass
         {
             get { return MASS + _currentFuel; }
 
         }
 
-        private readonly float THURST_VECTOR_AMT = 2f;
-        private readonly float LIFESPAN = 50f;
-        private readonly float BURN_RATE_DIVISOR = 2500f;
+        private readonly float THURST_VECTOR_AMT = 0.7f;
+        private readonly float LIFESPAN = 70f;
+        private readonly float BURN_RATE = 1.7f;
         private readonly float THRUST = 4000f;
-        private readonly float BOOST_THRUST = 8000f;
-
         private readonly float MASS = 45.3f;
         private readonly float FUEL = 40f;
-        private readonly float BOOST_FUEL = 10f;
+        private readonly float BOOST_FUEL = 20f;
 
         private float _age = 0;
         private float _currentFuel = 0f;
@@ -63,17 +57,25 @@ namespace ProNav.GameObjects
         private Wing _noseWing;
         private Wing _rocketBody;
         private FixturePoint _centerOfThrust;
+        private FixturePoint _warheadCenterMass;
+        private FixturePoint _motorCenterMass;
+        private FixturePoint _flamePos;
 
-        public GuidedMissile(Ship player, Target target, GuidanceType guidance = GuidanceType.Advanced, bool useControlSurfaces = false, bool useThrustVectoring = false) : base(player.Position, player.Velocity, player.Rotation)
+
+        public GuidedMissile(Ship player, GameObjectPoly target, GuidanceType guidance = GuidanceType.Advanced, bool useControlSurfaces = false, bool useThrustVectoring = false) : base(player.Position, player.Velocity, player.Rotation)
         {
             _currentFuel = FUEL;
             _currentBoostFuel = BOOST_FUEL;
-            _centerOfThrust = new FixturePoint(this, new D2DPoint(-11, 0));
+
+            _centerOfThrust = new FixturePoint(this, new D2DPoint(-22, 0));
+            _warheadCenterMass = new FixturePoint(this, new D2DPoint(4f, 0));
+            _motorCenterMass = new FixturePoint(this, new D2DPoint(-11f, 0));
+            _flamePos = new FixturePoint(this, new D2DPoint(-22f, 0));
 
             this.GuidanceType = guidance;
             this.Target = target;
             this.Polygon = new RenderPoly(_missilePoly, new D2DPoint(-2f, 0f));
-            this.FlamePoly = new RenderPoly(_flamePoly, new D2DPoint(-2.3f, 0));
+            this.FlamePoly = new RenderPoly(_flamePoly, new D2DPoint(6f, 0));
             this.Rotation = player.Rotation;
 
             _useControlSurfaces = useControlSurfaces;
@@ -81,9 +83,9 @@ namespace ProNav.GameObjects
 
             if (_useControlSurfaces)
             {
-                _tailWing = new Wing(this, 4f, 0.2f, 30f, new D2DPoint(-8.5f, 0));
-                _rocketBody = new Wing(this, 0f, 0.1f, D2DPoint.Zero);
-                _noseWing = new Wing(this, 4f, 0.1f, 30f, new D2DPoint(8f, 0));
+                _tailWing = new Wing(this, 4f, 0.2f, 40f, 7000f, new D2DPoint(-22f, 0));
+                _rocketBody = new Wing(this, 0f, 0.15f, 4000f, D2DPoint.Zero);
+                _noseWing = new Wing(this, 4f, 0.05f, 20f, 5000f, new D2DPoint(19.5f, 0));
             }
             else
             {
@@ -127,7 +129,7 @@ namespace ProNav.GameObjects
 
             if (_useControlSurfaces)
             {
-                var tailForce =_tailWing.GetLiftDragForce();
+                var tailForce = _tailWing.GetLiftDragForce();
                 var noseForce = _noseWing.GetLiftDragForce();
                 var bodyForce = _rocketBody.GetLiftDragForce();
                 liftDrag += tailForce + noseForce + bodyForce;
@@ -139,9 +141,7 @@ namespace ProNav.GameObjects
                 var thrustTorque = GetTorque(_centerOfThrust.Position, GetThrust(thrustVector: _useThrustVectoring));
                 var torqueRot = (tailTorque + bodyTorque + noseTorque + thrustTorque) * dt;
 
-                var inertia = GetInertia(this.Polygon, this.TotalMass);
-
-                this.Rotation += torqueRot / inertia;
+                this.RotationSpeed += torqueRot / this.TotalMass;
             }
             else
             {
@@ -155,11 +155,15 @@ namespace ProNav.GameObjects
             if (_useControlSurfaces)
             {
                 const float TAIL_AUTH = 1f;
-                const float NOSE_AUTH = 0.3f;
+                const float NOSE_AUTH = 0f;
+                const float MIN_DEF_SPD = 600f; // Minimum speed required for full deflection.
 
                 // Compute deflection.
                 var veloAngle = this.Velocity.Angle(true);
                 var nextDeflect = Helpers.ClampAngle180(guideRotation - veloAngle);
+                var spdFact = Helpers.Factor(this.Velocity.Length(), MIN_DEF_SPD);
+
+                nextDeflect *= spdFact;
 
                 _tailWing.Deflection = TAIL_AUTH * -nextDeflect;
                 _noseWing.Deflection = NOSE_AUTH * nextDeflect;
@@ -172,6 +176,7 @@ namespace ProNav.GameObjects
             // Add thrust and integrate acceleration.
             accel += GetThrust(thrustVector: false) * dt / TotalMass;
             accel += dt * (liftDrag / TotalMass);
+
             this.Velocity += accel;
 
             if (_currentFuel > 0f)
@@ -179,20 +184,6 @@ namespace ProNav.GameObjects
                 _currentFuel -= BURN_RATE * dt;
                 _currentBoostFuel -= BURN_RATE * dt;
             }
-
-            if (FUEL <= 0f && this.Velocity.Length() <= 30f)
-                this.IsExpired = true;
-
-            if (Target.IsExpired)
-                this.IsExpired = true;
-
-            // Make the flame do flamey things...(Wiggle and color)
-            var thrust = GetThrust().Length();
-            var len = this.Velocity.Length() * 0.05f;
-            len += thrust * 0.01f;
-            len *= 0.5f;
-            FlamePoly.SourcePoly[1].X = -_rnd.NextFloat(9f + len, 11f + len);
-            _flameFillColor.g = _rnd.NextFloat(0.6f, 0.86f);
 
             base.Update(dt, viewport, renderScale + _renderOffset);
 
@@ -208,10 +199,37 @@ namespace ProNav.GameObjects
             }
 
             _centerOfThrust.Update(dt, viewport, renderScale + _renderOffset);
+            _warheadCenterMass.Update(dt, viewport, renderScale + _renderOffset);
+            _motorCenterMass.Update(dt, viewport, renderScale + _renderOffset);
+            _flamePos.Update(dt, viewport, renderScale + _renderOffset);
 
-            const float DEF_AMT = 0.2f; // How much the flame will be deflected in relation to velocity.
-            var angle = this.Rotation - (Helpers.ClampAngle180(this.Rotation - this.Velocity.Angle(true)) * DEF_AMT);
-            FlamePoly.Update(this.Position, angle, renderScale + _renderOffset);
+            float flameAngle = 0f;
+
+            if (_useThrustVectoring)
+            {
+                flameAngle = GetThrust(_useThrustVectoring).Angle();
+            }
+            else
+            {
+                const float DEF_AMT = 0.2f; // How much the flame will be deflected in relation to velocity.
+                flameAngle = this.Rotation - (Helpers.ClampAngle180(this.Rotation - this.Velocity.Angle(true)) * DEF_AMT);
+            }
+
+            // Make the flame do flamey things...(Wiggle and color)
+            var thrust = GetThrust().Length();
+            var len = this.Velocity.Length() * 0.05f;
+            len += thrust * 0.02f;
+            len *= 0.5f;
+            FlamePoly.SourcePoly[1].X = -_rnd.NextFloat(9f + len, 11f + len);
+            _flameFillColor.g = _rnd.NextFloat(0.6f, 0.86f);
+
+            FlamePoly.Update(_flamePos.Position, flameAngle, renderScale + _renderOffset);
+
+            if (FUEL <= 0f && this.Velocity.Length() <= 5f)
+                this.IsExpired = true;
+
+            if (Target.IsExpired)
+                this.IsExpired = true;
         }
 
         public override void Wrap(D2DSize viewport)
@@ -261,9 +279,8 @@ namespace ProNav.GameObjects
             }
 
             gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 0.5f, D2DDashStyle.Solid, fillColor);
-            //gfx.DrawPolygon(this.Polygon.Poly, D2DColor.White, 1f, D2DDashStyle.Solid, D2DColor.White);
 
-            DrawFuelGauge(gfx);
+            //DrawFuelGauge(gfx);
 
             if (_useControlSurfaces)
             {
@@ -283,12 +300,21 @@ namespace ProNav.GameObjects
                 gfx.FillEllipse(new D2DEllipse(_guidance.ImpactPoint, new D2DSize(3f, 3f)), D2DColor.Red);
             }
 
-
             //// Center of mass and center of lift.
             //gfx.FillEllipse(new D2DEllipse(this.Position, new D2DSize(1f, 1f)), D2DColor.Orange);
             //gfx.FillEllipse(new D2DEllipse((_tailWing.Position + _noseWing.Position) / 2f, new D2DSize(1f, 1f)), D2DColor.CornflowerBlue);
             //gfx.FillEllipse(new D2DEllipse(this.CenterOfPolygon(), new D2DSize(1f, 1f)), D2DColor.Green);
+            //gfx.FillEllipse(this.CenterOfPolygon(), 2f, D2DColor.LightGreen);
+
             //_centerOfThrust.Render(gfx);
+            //_warheadCM.Render(gfx);
+            //_motorCM.Render(gfx);
+            //_flamePos.Render(gfx);
+
+            //var sumCm = (MASS * _warheadCM.Position + _currentFuel * _motorCM.Position) / (MASS + _currentFuel);
+            //gfx.FillEllipse(new D2DEllipse(sumCm, new D2DSize(1f, 1f)), D2DColor.Orange);
+
+            //gfx.DrawText(Math.Round(this.Velocity.Length(), 1).ToString(), D2DColor.Black, "Consolas", 1f, new D2DRect(this.Position, new D2DSize(4f, 4f)));
         }
 
         private void DrawFuelGauge(D2DGraphics gfx)
@@ -317,9 +343,16 @@ namespace ProNav.GameObjects
         private float GetTorque(D2DPoint pos, D2DPoint force)
         {
             // How is it so simple?
-            var r = pos - this.Position;
+            var r = pos - GetCenterOfGravity();
+
             var torque = Helpers.Cross(r, force);
             return torque;
+        }
+
+        private D2DPoint GetCenterOfGravity()
+        {
+            var cm = (MASS * _warheadCenterMass.Position + _currentFuel * _motorCenterMass.Position) / (MASS + _currentFuel);
+            return cm;
         }
 
         private D2DPoint GetThrust(bool thrustVector = false)
@@ -335,8 +368,7 @@ namespace ProNav.GameObjects
                 else
                     vec = AngleToVector(this.Rotation);
 
-                // Ease out boost thrust.
-                vec *= Helpers.Lerp(THRUST, BOOST_THRUST, _currentBoostFuel, BOOST_FUEL);
+                vec *= THRUST;
 
                 thrust = vec;
             }

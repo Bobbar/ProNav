@@ -2,7 +2,7 @@
 {
     public class BasicLOSGuidance : GuidanceBase
     {
-        public BasicLOSGuidance(Missile missile, Target target) : base(missile, target)
+        public BasicLOSGuidance(Missile missile, GameObjectPoly target) : base(missile, target)
         { }
 
         public override float GetGuidanceDirection(float dt)

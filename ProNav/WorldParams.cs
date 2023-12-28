@@ -59,6 +59,7 @@ namespace ProNav
         public static bool ShowTracking = false;
         public static bool EnableWind = false;
         public static bool EnableTurbulence = false;
+        public static bool ExpireMissilesOnMiss = false;
 
         private static float _zoomScale = 0.35f;
         private static float _dt = 0.06f;
@@ -73,6 +74,8 @@ namespace ProNav
 
         private static RandomVariationFloat _airDensVariation = new RandomVariationFloat(MIN_TURB_DENS, MAX_TURB_DENS, 0.2f, 5f);
         private static RandomVariationVector _windVariation = new RandomVariationVector(MAX_WIND_MAG, 10f, 50f);
+
+        public static D2DPoint Gravity = new D2DPoint(9.8f, 0);
 
         public static void UpdateViewport(Size viewPortSize)
         {

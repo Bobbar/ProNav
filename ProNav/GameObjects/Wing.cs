@@ -24,9 +24,11 @@ namespace ProNav.GameObjects
 
         private FixturePoint FixedPosition;
         private D2DPoint _prevPosition;
-        private float _deflection = 0f;
         private Missile _missle;
+
         private float _maxDeflection = 40f;
+        private float _maxLift = 15000f;
+        private float _deflection = 0f;
 
         public Wing(Missile missile, float renderLen, float area, D2DPoint position)
         {
@@ -47,6 +49,19 @@ namespace ProNav.GameObjects
             Area = area;
             Rotation = missile.Rotation;
             _maxDeflection = maxDeflection;
+            this.Velocity = D2DPoint.Zero;
+            _missle = missile;
+        }
+
+        public Wing(Missile missile, float renderLen, float area, float maxDeflection, float maxLift, D2DPoint position)
+        {
+            FixedPosition = new FixturePoint(missile, position);
+
+            RenderLength = renderLen;
+            Area = area;
+            Rotation = missile.Rotation;
+            _maxDeflection = maxDeflection;
+            _maxLift = maxLift;
             this.Velocity = D2DPoint.Zero;
             _missle = missile;
         }
@@ -104,6 +119,12 @@ namespace ProNav.GameObjects
             var veloMag = velo.Length();
             var veloMagSq = (float)Math.Pow(veloMag, 2f);
 
+            float minVelo = 400f;
+            var veloFact = Helpers.Factor(veloMag, minVelo);
+
+            veloMag *= veloFact;
+            veloMagSq *= veloFact;
+
             // Compute velo tangent. For lift/drag and rotation calcs.
             var veloNorm = D2DPoint.Normalize(velo);
             var veloNormTan = new D2DPoint(veloNorm.Y, -veloNorm.X);
@@ -116,17 +137,17 @@ namespace ProNav.GameObjects
             // Greater AoA and greater velocity = more lift force.
 
             // Wing & air parameters.
-            const float AOA_FACT = 0.2f; // How much AoA effects drag.
-            const float VELO_FACT = 0.4f; // How much velocity effects drag.
+            const float AOA_FACT = 0.5f; // How much AoA effects drag.
+            const float VELO_FACT = 0.3f; // How much velocity effects drag.
             float WING_AREA = this.Area; // Area of the wing. Effects lift & drag forces.
-            const float MAX_LIFT = 20000f; // Max lift force allowed.
-            const float MAX_AOA = 40f; // Max AoA allowed before lift force reduces. (Stall)
+            float MAX_LIFT = _maxLift; // Max lift force allowed.
+            const float MAX_AOA = 30f; // Max AoA allowed before lift force reduces. (Stall)
             float AIR_DENSITY = World.AirDensity;
-            const float PARASITIC_DRAG = 0.5f;
+            const float PARASITIC_DRAG = 0.04f;
 
             // Drag force.
-            var dragAoa = 1f - (float)Math.Cos(2f * aoaRads);
-            var dragForce = dragAoa * AOA_FACT * WING_AREA * 0.5f * AIR_DENSITY * veloMagSq * VELO_FACT;
+            var coeffDrag = 1f - (float)Math.Cos(2f * aoaRads);
+            var dragForce = coeffDrag * AOA_FACT * WING_AREA * 0.5f * AIR_DENSITY * veloMagSq * VELO_FACT;
             dragForce += veloMag * (WING_AREA * PARASITIC_DRAG);
 
             // Lift force.

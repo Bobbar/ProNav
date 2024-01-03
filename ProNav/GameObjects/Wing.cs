@@ -6,6 +6,7 @@ namespace ProNav.GameObjects
     {
         public float RenderLength { get; set; }
         public float Area { get; set; }
+        public float MaxLift { get; set; } = 15000f;
         public float Deflection
         {
             get { return _defRateLimit.Value; }
@@ -25,10 +26,8 @@ namespace ProNav.GameObjects
         private FixturePoint FixedPosition;
         private D2DPoint _prevPosition;
         private Missile _missle;
-        private RateLimiter _defRateLimit = new RateLimiter(rate: 30f);
-
+        private RateLimiter _defRateLimit = new RateLimiter(rate: 40f);
         private float _maxDeflection = 40f;
-        private float _maxLift = 15000f;
 
         public Wing(Missile missile, float renderLen, float area, D2DPoint position)
         {
@@ -60,8 +59,9 @@ namespace ProNav.GameObjects
             RenderLength = renderLen;
             Area = area;
             Rotation = missile.Rotation;
+            MaxLift = maxLift;
+
             _maxDeflection = maxDeflection;
-            _maxLift = maxLift;
             this.Velocity = D2DPoint.Zero;
             _missle = missile;
         }
@@ -95,10 +95,10 @@ namespace ProNav.GameObjects
             gfx.DrawLine(startB, endB, D2DColor.DarkGray, 2f);
 
             //// Draw wing without rate limit.
-            //var wingVecRaw = Helpers.AngleToVectorDegrees(_missle.Rotation + _defRateLimit.Target);
-            //var startRaw = this.Position - wingVecRaw * RenderLength;
-            //var end2Raw = this.Position + wingVecRaw * RenderLength;
-            //gfx.DrawLine(startRaw, end2Raw, D2DColor.Red, 1f, D2DDashStyle.Solid, D2DCapStyle.Round, D2DCapStyle.Round);
+            var wingVecRaw = Helpers.AngleToVectorDegrees(_missle.Rotation + _defRateLimit.Target);
+            var startRaw = this.Position - wingVecRaw * RenderLength;
+            var end2Raw = this.Position + wingVecRaw * RenderLength;
+            gfx.DrawLine(startRaw, end2Raw, D2DColor.Red, 1f, D2DDashStyle.Solid, D2DCapStyle.Round, D2DCapStyle.Round);
 
             // Draw wing.
             var wingVec = Helpers.AngleToVectorDegrees(this.Rotation);
@@ -110,8 +110,10 @@ namespace ProNav.GameObjects
             {
                 const float SCALE = 0.04f;
                 gfx.DrawLine(this.Position, this.Position + (LiftVector * SCALE), D2DColor.SkyBlue, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
-                gfx.DrawLine(this.Position, this.Position + (DragVector * SCALE), D2DColor.Red, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
+                gfx.DrawLine(this.Position, this.Position + (DragVector * (SCALE + 0.03f)), D2DColor.Red, 0.5f, D2DDashStyle.Solid, D2DCapStyle.Flat, D2DCapStyle.Triangle);
             }
+
+            //gfx.DrawLine(this.Position, this.Position + (this.Velocity * 0.1f), D2DColor.GreenYellow, 0.5f);
         }
 
         public D2DPoint GetLiftDragForce()
@@ -147,7 +149,7 @@ namespace ProNav.GameObjects
             const float AOA_FACT = 0.5f; // How much AoA effects drag.
             const float VELO_FACT = 0.3f; // How much velocity effects drag.
             float WING_AREA = this.Area; // Area of the wing. Effects lift & drag forces.
-            float MAX_LIFT = _maxLift; // Max lift force allowed.
+            float MAX_LIFT = this.MaxLift; // Max lift force allowed.
             const float MAX_AOA = 30f; // Max AoA allowed before lift force reduces. (Stall)
             float AIR_DENSITY = World.AirDensity;
             const float PARASITIC_DRAG = 0.04f;

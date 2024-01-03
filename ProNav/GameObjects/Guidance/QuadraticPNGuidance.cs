@@ -15,7 +15,7 @@
             var target = this.Target.CenterOfPolygon();
             var targetRot = this.Missile.Rotation;
 
-            if (GetInterceptDirection(this.Missile.Position, target, this.Missile.Velocity.Length(), this.Target.Velocity, out direction))
+            if (GetInterceptDirection(this.Missile.Position, target, this.Missile.Velocity.Length() * dt, this.Target.Velocity * dt, out direction))
             {
                 targetRot = direction.Angle(true);
                 _prevDir = targetRot;

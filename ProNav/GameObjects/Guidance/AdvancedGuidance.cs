@@ -15,9 +15,9 @@
         public override float GetGuidanceDirection(float dt)
         {
             // Tweakables
-            const float MAX_ROT_RATE = 1.5f;//1.5f; // Max rotation rate.
-            const float MIN_ROT_RATE = 1f;//1.0f; // Min rotation rate.
-            const float MIN_ROT_SPEED = 600f; // Speed at which rotation rate will be the smallest.
+            const float MAX_ROT_RATE = 1.5f; // Max rotation rate.
+            const float MIN_ROT_RATE = 1f; // Min rotation rate.
+            const float MIN_ROT_SPEED = 1000f; // Speed at which rotation rate will be the smallest.
             const float ROT_MOD_DIST = 1000f; // Distance to begin increasing rotation rate. (Get more aggro the closer we get)
             const float ROT_MOD_AMT = 1f; // Max amount to increase rot rate per above distance.
             const float IMPACT_POINT_DELTA_THRESH = 2f; // Smaller value = target impact point later. (Waits until the point has stabilized more)
@@ -51,8 +51,8 @@
                 var targAngleDelta = tarVeloAngle - _prevTargVeloAngle;
                 _prevTargVeloAngle = tarVeloAngle;
 
-                var timeToImpact = ImpactTime(targDist, (veloMag * dt), (deltaV * dt));
-                impactPnt = RefineImpact(target, targetVelo, targAngleDelta, timeToImpact, dt);
+                var timeToImpact = ImpactTime(targDist, (veloMag * dt) + targetVelo.Length(), (deltaV * dt));
+                impactPnt = RefineImpact(target, targetVelo, targAngleDelta, timeToImpact);
             }
 
             ImpactPoint = impactPnt; // Red
@@ -111,7 +111,7 @@
             return (finalVelo - velo) / accel;
         }
 
-        private D2DPoint RefineImpact(D2DPoint targetPos, D2DPoint targetVelo, float targAngleDelta, float timeToImpact, float dt)
+        private D2DPoint RefineImpact(D2DPoint targetPos, D2DPoint targetVelo, float targAngleDelta, float timeToImpact)
         {
             // To obtain a high order target position we basically run a small simulation here.
             // This considers the target velocity as well as the change in angular velocity.

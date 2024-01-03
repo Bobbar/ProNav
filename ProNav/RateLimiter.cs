@@ -34,9 +34,9 @@ namespace ProNav
             if (_current == _target) 
                 return;
 
-            var sign = Math.Sign(_target - _current);
-            var amt = (_rate * sign) * dt;
             var diff = _target - _current;
+            var sign = Math.Sign(diff);
+            var amt = (_rate * sign) * dt;
 
             if (Math.Abs(amt) > Math.Abs(diff))
                 amt = diff;

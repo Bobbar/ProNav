@@ -7,7 +7,7 @@
 
         public override float GetGuidanceDirection(float dt)
         {
-            const float pValue = 0.5f;
+            const float pValue = 20f;
 
             var target = this.Target.CenterOfPolygon();
             var targDist = D2DPoint.Distance(target, this.Missile.Position);

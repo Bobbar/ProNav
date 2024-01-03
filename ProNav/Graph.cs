@@ -78,8 +78,11 @@ namespace ProNav
             }
         }
 
-        public void Render(D2DGraphics gfx, D2DPoint pos)
+        public void Render(D2DGraphics gfx, D2DPoint pos, float scale = 1f)
         {
+            gfx.PushTransform();
+            gfx.ScaleTransform(scale, scale);
+
             var tmax = pos.Y + (_drawSize.Height * 0.5f);
             var tmin = pos.Y - (_drawSize.Height * 0.5f);
 
@@ -102,6 +105,8 @@ namespace ProNav
 
             gfx.DrawLine(new D2DPoint(pos.X + _xPosition - _drawSize.Width * 0.5f, pos.Y + _drawSize.Height * 0.5f), new D2DPoint(pos.X + _xPosition - _drawSize.Width * 0.5f, pos.Y - _drawSize.Height * 0.5f), D2DColor.LightGray);
             gfx.DrawRectangle(new D2DRect(pos, new D2DSize(_drawSize.Width, _drawSize.Height)), D2DColor.White);
+
+            gfx.PopTransform();
         }
 
         private float ScaleValue(float value, D2DPoint pos, MinMax range)

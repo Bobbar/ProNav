@@ -1,4 +1,5 @@
 ﻿using ProNav.GameObjects.Guidance;
+using System.Diagnostics;
 using unvell.D2DLib;
 
 namespace ProNav.GameObjects
@@ -32,7 +33,7 @@ namespace ProNav.GameObjects
 
         }
 
-        private readonly float THURST_VECTOR_AMT = 0.7f;
+        private readonly float THURST_VECTOR_AMT = 1f;
         private readonly float LIFESPAN = 70f;
         private readonly float BURN_RATE = 1.7f;
         private readonly float THRUST = 4000f;
@@ -60,7 +61,6 @@ namespace ProNav.GameObjects
         private FixturePoint _warheadCenterMass;
         private FixturePoint _motorCenterMass;
         private FixturePoint _flamePos;
-
 
         public GuidedMissile(Ship player, GameObjectPoly target, GuidanceType guidance = GuidanceType.Advanced, bool useControlSurfaces = false, bool useThrustVectoring = false) : base(player.Position, player.Velocity, player.Rotation)
         {
@@ -156,14 +156,27 @@ namespace ProNav.GameObjects
             {
                 const float TAIL_AUTH = 1f;
                 const float NOSE_AUTH = 0f;
-                const float MIN_DEF_SPD = 600f; // Minimum speed required for full deflection.
 
                 // Compute deflection.
                 var veloAngle = this.Velocity.Angle(true);
                 var nextDeflect = Helpers.ClampAngle180(guideRotation - veloAngle);
-                var spdFact = Helpers.Factor(this.Velocity.Length(), MIN_DEF_SPD);
 
-                nextDeflect *= spdFact;
+                // Adjust the deflection as speed, rotation speed and AoA increases.
+                // This is to try to prevent over-rotation caused by thrust vectoring.
+                if (_currentFuel > 0f && _useThrustVectoring)
+                {
+                    const float MIN_DEF_SPD = 600f; // Minimum speed required for full deflection.
+                    var spdFact = Helpers.Factor(this.Velocity.Length(), MIN_DEF_SPD);
+                    nextDeflect *= spdFact;
+
+                    const float MAX_DEF_AOA = 110f; // Maximum AoA allowed. Reduce deflection as AoA increases.
+                    var aoaFact = 1f - Helpers.Factor(Math.Abs(_rocketBody.AoA), MAX_DEF_AOA);
+                    nextDeflect *= aoaFact;
+
+                    const float MAX_DEF_ROT_SPD = 310f; // Maximum rotation speed allowed. Reduce deflection to try to control rotation speed.
+                    var rotSpdFact = 1f - Helpers.Factor(Math.Abs(this.RotationSpeed), MAX_DEF_ROT_SPD);
+                    nextDeflect *= rotSpdFact;
+                }
 
                 _tailWing.Deflection = TAIL_AUTH * -nextDeflect;
                 _noseWing.Deflection = NOSE_AUTH * nextDeflect;

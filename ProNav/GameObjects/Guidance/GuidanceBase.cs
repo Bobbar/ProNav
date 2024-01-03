@@ -18,7 +18,7 @@ namespace ProNav.GameObjects.Guidance
         private float _missDistTraveled = 0f;
         private float _missDirection = 0f; // O.o
 
-        private readonly float MISS_TARG_DIST = 500f; // Distance to be considered a miss when the closing rate goes negative.
+        private readonly float MISS_TARG_DIST = 400f; // Distance to be considered a miss when the closing rate goes negative.
         private readonly float REENGAGE_DIST = 1000f;//1500f; // How far we must be from the target before re-engaging after a miss.
         private readonly float ARM_DIST = 1200f;//600f;
 
@@ -59,7 +59,7 @@ namespace ProNav.GameObjects.Guidance
 
                     _missedTarget = true;
                     _missDistTraveled = Missile.DistTraveled;
-                    _reEngageMod += REENGAGE_DIST * 0.5f;
+                    _reEngageMod += REENGAGE_DIST * 0.2f;
                     _missDirection = Missile.Rotation;
                 }
             }

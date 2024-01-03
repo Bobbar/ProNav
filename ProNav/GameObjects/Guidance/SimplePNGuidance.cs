@@ -7,12 +7,12 @@
 
         public override float GetGuidanceDirection(float dt)
         {
-            const float pValue = 3f;
+            const float pValue = 2f;
 
             var target = this.Target.CenterOfPolygon();
             var los = target - this.Missile.Position;
-            var navigationTime = los.Length() / this.Missile.Velocity.Length();
-            var targRelInterceptPos = los + (Target.Velocity * navigationTime);
+            var navigationTime = los.Length() / (this.Missile.Velocity.Length() * dt);
+            var targRelInterceptPos = los + ((Target.Velocity * dt) * navigationTime);
 
             ImpactPoint = targRelInterceptPos;
             targRelInterceptPos *= pValue;
